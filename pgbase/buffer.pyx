@@ -16,18 +16,7 @@ from pgbase import exceptions
 @cython.final
 @cython.freelist(_MEMORY_FREELIST_SIZE)
 cdef class Memory:
-
-    cdef as_bytes(self):
-        return cpython.PyBytes_FromStringAndSize(self.buf, self.length)
-
-    @staticmethod
-    cdef inline Memory new(const char* buf, object owner, ssize_t length):
-        cdef Memory mem
-        mem = Memory.__new__(Memory)
-        mem.buf = buf
-        mem.owner = owner
-        mem.length = length
-        return mem
+    pass
 
 
 @cython.no_gc_clear
@@ -669,3 +658,14 @@ cdef class ReadBuffer:
         buf._current_message_len_unread = buf._len0
 
         return buf
+
+
+@cython.no_gc_clear
+@cython.final
+@cython.freelist(_BUFFER_FREELIST_SIZE)
+cdef class FastReadBuffer:
+
+    cdef _raise_ins_err(self, ssize_t n, ssize_t len):
+        raise exceptions.BufferError(
+            'insufficient data in buffer: requested {}, remaining {}'.
+                format(n, self.len))

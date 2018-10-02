@@ -5,19 +5,26 @@
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
 
-from pgbase import exceptions
-
-
+@cython.no_gc_clear
+@cython.final
+@cython.freelist(_MEMORY_FREELIST_SIZE)
 cdef class Memory:
     cdef:
         const char *buf
         object owner
         ssize_t length
 
-    cdef as_bytes(self)
+    cdef inline as_bytes(self):
+        return cpython.PyBytes_FromStringAndSize(self.buf, self.length)
 
     @staticmethod
-    cdef inline Memory new(const char *buf, object owner, ssize_t length)
+    cdef inline Memory new(const char* buf, object owner, ssize_t length):
+        cdef Memory mem
+        mem = Memory.__new__(Memory)
+        mem.buf = buf
+        mem.owner = owner
+        mem.length = length
+        return mem
 
 
 cdef class WriteBuffer:
@@ -171,10 +178,7 @@ cdef class FastReadBuffer:
         self.len = len
         return self
 
-    cdef inline _raise_ins_err(self, ssize_t n, ssize_t len):
-        raise exceptions.BufferError(
-            'insufficient data in buffer: requested {}, remaining {}'.
-                format(n, self.len))
+    cdef _raise_ins_err(self, ssize_t n, ssize_t len)
 
     @staticmethod
     cdef inline FastReadBuffer new():

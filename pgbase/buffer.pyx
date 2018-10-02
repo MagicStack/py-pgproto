@@ -67,9 +67,6 @@ cdef class WriteBuffer:
         if self._view_count:
             raise exceptions.BufferError('the buffer is in read-only mode')
 
-    cdef inline len(self):
-        return self._length
-
     cdef inline _ensure_alloced(self, ssize_t extra_length):
         cdef ssize_t new_size = extra_length + self._length
 
@@ -661,12 +658,6 @@ cdef class ReadBuffer:
         self._current_message_ready = 0
         self._current_message_len_unread = 0
 
-    cdef inline char get_message_type(self):
-        return self._current_message_type
-
-    cdef inline int32_t get_message_length(self):
-        return self._current_message_len
-
     @staticmethod
     cdef ReadBuffer new_message_parser(object data):
         cdef ReadBuffer buf
@@ -678,43 +669,3 @@ cdef class ReadBuffer:
         buf._current_message_len_unread = buf._len0
 
         return buf
-
-
-@cython.no_gc_clear
-@cython.final
-@cython.freelist(_BUFFER_FREELIST_SIZE)
-cdef class FastReadBuffer:
-
-    cdef inline const char* read(self, ssize_t n) except NULL:
-        cdef const char *result
-
-        if n > self.len:
-            self._raise_ins_err(n, self.len)
-
-        result = self.buf
-        self.buf += n
-        self.len -= n
-
-        return result
-
-    cdef inline const char* read_all(self):
-        cdef const char *result
-        result = self.buf
-        self.buf += self.len
-        self.len = 0
-        return result
-
-    cdef inline FastReadBuffer slice_from(self, FastReadBuffer source,
-                                          ssize_t len):
-        self.buf = source.read(len)
-        self.len = len
-        return self
-
-    cdef _raise_ins_err(self, ssize_t n, ssize_t len):
-        raise exceptions.BufferError(
-            'insufficient data in buffer: requested {}, remaining {}'.
-                format(n, self.len))
-
-    @staticmethod
-    cdef FastReadBuffer new():
-        return FastReadBuffer.__new__(FastReadBuffer)

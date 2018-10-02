@@ -5,6 +5,9 @@
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
 
+from pgbase import exceptions
+
+
 cdef class Memory:
     cdef:
         const char *buf
@@ -37,8 +40,10 @@ cdef class WriteBuffer:
         # True is start_message was used
         bint _message_mode
 
+    cdef inline len(self):
+        return self._length
+
     cdef inline _check_readonly(self)
-    cdef inline len(self)
     cdef inline _ensure_alloced(self, ssize_t extra_length)
     cdef _reallocate(self, ssize_t new_size)
     cdef inline start_message(self, char type)
@@ -121,23 +126,56 @@ cdef class ReadBuffer:
     cdef bytearray consume_messages(self, char mtype)
     cdef finish_message(self)
     cdef inline _finish_message(self)
-    cdef inline char get_message_type(self)
-    cdef inline int32_t get_message_length(self)
+
+    cdef inline char get_message_type(self):
+        return self._current_message_type
+
+    cdef inline int32_t get_message_length(self):
+        return self._current_message_len
 
     @staticmethod
     cdef ReadBuffer new_message_parser(object data)
 
 
+@cython.no_gc_clear
+@cython.final
+@cython.freelist(_BUFFER_FREELIST_SIZE)
 cdef class FastReadBuffer:
+
     cdef:
         const char* buf
         ssize_t len
 
-    cdef inline const char* read(self, ssize_t n) except NULL
-    cdef inline const char* read_all(self)
+    cdef inline const char* read(self, ssize_t n) except NULL:
+        cdef const char *result
+
+        if n > self.len:
+            self._raise_ins_err(n, self.len)
+
+        result = self.buf
+        self.buf += n
+        self.len -= n
+
+        return result
+
+    cdef inline const char* read_all(self):
+        cdef const char *result
+        result = self.buf
+        self.buf += self.len
+        self.len = 0
+        return result
+
     cdef inline FastReadBuffer slice_from(self, FastReadBuffer source,
-                                          ssize_t len)
-    cdef _raise_ins_err(self, ssize_t n, ssize_t len)
+                                          ssize_t len):
+        self.buf = source.read(len)
+        self.len = len
+        return self
+
+    cdef inline _raise_ins_err(self, ssize_t n, ssize_t len):
+        raise exceptions.BufferError(
+            'insufficient data in buffer: requested {}, remaining {}'.
+                format(n, self.len))
 
     @staticmethod
-    cdef FastReadBuffer new()
+    cdef inline FastReadBuffer new():
+        return FastReadBuffer.__new__(FastReadBuffer)

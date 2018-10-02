@@ -63,6 +63,12 @@ cdef class WriteBuffer:
     cdef WriteBuffer new()
 
 
+ctypedef const char * (*try_consume_message_method)(object, ssize_t*)
+ctypedef int32_t (*take_message_type_method)(object, char) except -1
+ctypedef int32_t (*take_message_method)(object) except -1
+ctypedef char (*get_message_type_method)(object)
+
+
 cdef class ReadBuffer:
     cdef:
         # A deque of buffers (bytes objects)

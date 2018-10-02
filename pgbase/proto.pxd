@@ -14,5 +14,4 @@ include "./consts.pxi"
 include "./buffer.pxd"
 
 
-include "./codecs/base.pxd"
-include "./codecs/exports.pxd"
+include "./codecs/__init__.pxd"

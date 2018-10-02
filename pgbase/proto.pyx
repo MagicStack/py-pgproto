@@ -23,7 +23,7 @@ from .debug cimport PG_DEBUG
 include "./consts.pxi"
 include "./buffer.pyx"
 
-include "./codecs/base.pyx"
+include "./codecs/context.pyx"
 
 include "./codecs/bytea.pyx"
 include "./codecs/text.pyx"

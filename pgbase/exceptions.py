@@ -5,5 +5,5 @@
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
 
-class InternalClientError(Exception):
-    """All unexpected errors not classified otherwise."""
+class BufferError(Exception):
+    pass

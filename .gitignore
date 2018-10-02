@@ -5,5 +5,5 @@
 *~
 .DS_Store
 __pycache__/
-/proto.c
+/pgproto.c
 *.html

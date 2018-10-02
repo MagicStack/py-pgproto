@@ -6,19 +6,9 @@
 
 
 cimport cython
+cimport cpython
 
-from .python cimport (
-    PyMem_Malloc, PyMem_Realloc, PyMem_Calloc, PyMem_Free,
-    PyMemoryView_GET_BUFFER, PyMemoryView_Check,
-    PyMemoryView_FromMemory, PyMemoryView_GetContiguous,
-    PyUnicode_AsUTF8AndSize, PyByteArray_AsString,
-    PyByteArray_Check, PyUnicode_AsUCS4Copy,
-    PyByteArray_Size, PyByteArray_Resize,
-    PyByteArray_FromStringAndSize,
-    PyUnicode_FromKindAndData, PyUnicode_4BYTE_KIND,
-    PyUnicode_FromString, PyUnicode_FromStringAndSize
-)
-
+from . cimport cpythonx
 
 from libc.stdint cimport int8_t, uint8_t, int16_t, uint16_t, \
                          int32_t, uint32_t, int64_t, uint64_t, \

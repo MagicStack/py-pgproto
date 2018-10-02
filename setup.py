@@ -193,7 +193,7 @@ class build_ext(distutils_build_ext.build_ext):
         from Cython.Build import cythonize
 
         directives = {
-            'language_level': '3'
+            'language_level': '3',
         }
 
         if self.cython_directives:

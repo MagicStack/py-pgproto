@@ -10,8 +10,6 @@ from libc.stdio cimport snprintf
 
 import decimal
 
-from pgbase cimport python
-
 # defined in postgresql/src/backend/utils/adt/numeric.c
 DEF DEC_DIGITS = 4
 DEF MAX_DSCALE = 0x3FFF
@@ -191,7 +189,7 @@ cdef numeric_decode_binary(CodecContext settings, FastReadBuffer buf):
     )
 
     if buf_size > _NUMERIC_DECODER_SMALLBUF_SIZE:
-        charbuf = <char *>PyMem_Malloc(<size_t>buf_size)
+        charbuf = <char *>cpython.PyMem_Malloc(<size_t>buf_size)
         buf_allocated = True
     else:
         charbuf = smallbuf
@@ -246,13 +244,13 @@ cdef numeric_decode_binary(CodecContext settings, FastReadBuffer buf):
 
         bufptr[0] = 0
 
-        pydigits = python.PyUnicode_FromString(charbuf)
+        pydigits = cpythonx.PyUnicode_FromString(charbuf)
 
         return _Dec(pydigits)
 
     finally:
         if buf_allocated:
-            PyMem_Free(charbuf)
+            cpython.PyMem_Free(charbuf)
 
 
 cdef inline char *_unpack_digit_stripping_lzeros(char *buf, int64_t pgdigit):

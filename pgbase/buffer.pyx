@@ -5,7 +5,6 @@
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
 
-from cpython cimport Py_buffer
 from libc.string cimport memcpy
 
 import collections
@@ -49,7 +48,7 @@ cdef class WriteBuffer:
 
     def __dealloc__(self):
         if self._buf is not NULL and not self._smallbuf_inuse:
-            PyMem_Free(self._buf)
+            cpython.PyMem_Free(self._buf)
             self._buf = NULL
             self._size = 0
 
@@ -91,7 +90,8 @@ cdef class WriteBuffer:
             new_size += _BUFFER_INITIAL_SIZE
 
         if self._smallbuf_inuse:
-            new_buf = <char*>PyMem_Malloc(sizeof(char) * <size_t>new_size)
+            new_buf = <char*>cpython.PyMem_Malloc(
+                sizeof(char) * <size_t>new_size)
             if new_buf is NULL:
                 self._buf = NULL
                 self._size = 0
@@ -102,9 +102,10 @@ cdef class WriteBuffer:
             self._buf = new_buf
             self._smallbuf_inuse = False
         else:
-            new_buf = <char*>PyMem_Realloc(<void*>self._buf, <size_t>new_size)
+            new_buf = <char*>cpython.PyMem_Realloc(
+                <void*>self._buf, <size_t>new_size)
             if new_buf is NULL:
-                PyMem_Free(self._buf)
+                cpython.PyMem_Free(self._buf)
                 self._buf = NULL
                 self._size = 0
                 self._length = 0
@@ -378,8 +379,8 @@ cdef class ReadBuffer:
             if self._current_message_len_unread < 0:
                 raise BufferError('buffer overread')
 
-        result = PyByteArray_FromStringAndSize(NULL, nbytes)
-        buf = PyByteArray_AsString(result)
+        result = cpythonx.PyByteArray_FromStringAndSize(NULL, nbytes)
+        buf = cpythonx.PyByteArray_AsString(result)
         self._read(buf, nbytes)
 
         return Memory.new(buf, result, nbytes)
@@ -622,8 +623,8 @@ cdef class ReadBuffer:
         # consume_messages is a volume-oriented method, so
         # we assume that the remainder of the buffer will contain
         # messages of the requested type.
-        result = PyByteArray_FromStringAndSize(NULL, self._length)
-        buf = PyByteArray_AsString(result)
+        result = cpythonx.PyByteArray_FromStringAndSize(NULL, self._length)
+        buf = cpythonx.PyByteArray_AsString(result)
 
         while self.take_message_type(mtype):
             nbytes = self._current_message_len_unread
@@ -633,7 +634,7 @@ cdef class ReadBuffer:
             self._finish_message()
 
         # Clamp the result to an actual size read.
-        PyByteArray_Resize(result, total_bytes)
+        cpythonx.PyByteArray_Resize(result, total_bytes)
 
         return result
 

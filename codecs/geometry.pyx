@@ -5,7 +5,7 @@
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
 
-from pgbase.types import Box, Line, LineSegment, Path, Point, Polygon, Circle
+from ..types import Box, Line, LineSegment, Path, Point, Polygon, Circle
 
 
 cdef inline _encode_points(WriteBuffer wbuf, object points):

@@ -1,3 +1,0 @@
-recursive-include pgbase *.pyx *.pxd *.pxi *.py *.c *.h
-recursive-include pgbase/codecs *.pyx *.pxd *.pxi *.py *.c *.h
-include LICENSE README.rst

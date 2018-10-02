@@ -5,7 +5,7 @@
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
 
-from pgbase.types import BitString
+from ..types import BitString
 
 
 cdef bits_encode(CodecContext settings, WriteBuffer wbuf, obj):

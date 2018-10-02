@@ -1,1 +1,1 @@
-Sans IO PosgtreSQL driver
+Low-level IO utilities for PosgtreSQL drivers.

@@ -9,7 +9,7 @@ from libc.string cimport memcpy
 
 import collections
 
-from pgbase import exceptions
+from . import exceptions
 
 
 @cython.no_gc_clear

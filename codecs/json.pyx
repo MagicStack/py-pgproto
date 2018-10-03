@@ -20,8 +20,8 @@ cdef jsonb_encode(CodecContext settings, WriteBuffer buf, obj):
     buf.write_cstr(str, size)
 
 
-cdef jsonb_decode(CodecContext settings, FastReadBuffer buf):
-    cdef uint8_t format = <uint8_t>buf.read(1)[0]
+cdef jsonb_decode(CodecContext settings, frb.Buffer *buf):
+    cdef uint8_t format = <uint8_t>(frb.read(buf, 1)[0])
 
     if format != 1:
         raise ValueError('unexpected JSONB format: {}'.format(format))

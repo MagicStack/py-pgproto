@@ -658,14 +658,3 @@ cdef class ReadBuffer:
         buf._current_message_len_unread = buf._len0
 
         return buf
-
-
-@cython.no_gc_clear
-@cython.final
-@cython.freelist(_BUFFER_FREELIST_SIZE)
-cdef class FastReadBuffer:
-
-    cdef _raise_ins_err(self, ssize_t n, ssize_t len):
-        raise exceptions.BufferError(
-            'insufficient data in buffer: requested {}, remaining {}'.
-                format(n, self.len))

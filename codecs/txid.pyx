@@ -39,7 +39,7 @@ cdef txid_snapshot_encode(CodecContext settings, WriteBuffer buf, obj):
     buf.write_buffer(xip_buf)
 
 
-cdef txid_snapshot_decode(CodecContext settings, FastReadBuffer buf):
+cdef txid_snapshot_decode(CodecContext settings, frb.Buffer *buf):
     cdef:
         int32_t nxip
         int64_t xmin
@@ -48,13 +48,13 @@ cdef txid_snapshot_decode(CodecContext settings, FastReadBuffer buf):
         int32_t i
         object xip
 
-    nxip = hton.unpack_int32(buf.read(4))
-    xmin = hton.unpack_int64(buf.read(8))
-    xmax = hton.unpack_int64(buf.read(8))
+    nxip = hton.unpack_int32(frb.read(buf, 4))
+    xmin = hton.unpack_int64(frb.read(buf, 8))
+    xmax = hton.unpack_int64(frb.read(buf, 8))
 
     xip_tup = cpython.PyTuple_New(nxip)
     for i in range(nxip):
-        xip = cpython.PyLong_FromLongLong(hton.unpack_int64(buf.read(8)))
+        xip = cpython.PyLong_FromLongLong(hton.unpack_int64(frb.read(buf, 8)))
         cpython.Py_INCREF(xip)
         cpython.PyTuple_SET_ITEM(xip_tup, i, xip)
 

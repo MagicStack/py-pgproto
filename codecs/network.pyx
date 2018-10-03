@@ -59,12 +59,12 @@ cdef inline _net_encode(WriteBuffer buf, int8_t family, uint32_t bits,
     buf.write_cstr(addrbytes, addrlen)
 
 
-cdef net_decode(CodecContext settings, FastReadBuffer buf):
+cdef net_decode(CodecContext settings, frb.Buffer *buf):
     cdef:
-        int32_t family = <int32_t>buf.read(1)[0]
-        uint8_t bits = <uint8_t>buf.read(1)[0]
-        int32_t is_cidr = <int32_t>buf.read(1)[0]
-        int32_t addrlen = <int32_t>buf.read(1)[0]
+        int32_t family = <int32_t>frb.read(buf, 1)[0]
+        uint8_t bits = <uint8_t>frb.read(buf, 1)[0]
+        int32_t is_cidr = <int32_t>frb.read(buf, 1)[0]
+        int32_t addrlen = <int32_t>frb.read(buf, 1)[0]
         bytes addr
         uint8_t max_prefix_len = _ip_max_prefix_len(family)
 
@@ -85,7 +85,7 @@ cdef net_decode(CodecContext settings, FastReadBuffer buf):
             'cidr' if is_cidr else 'inet'
         ))
 
-    addr = cpython.PyBytes_FromStringAndSize(buf.read(addrlen), addrlen)
+    addr = cpython.PyBytes_FromStringAndSize(frb.read(buf, addrlen), addrlen)
 
     if is_cidr or bits != max_prefix_len:
         return _ipnet(addr).supernet(new_prefix=cpython.PyLong_FromLong(bits))

@@ -40,7 +40,7 @@ cdef hstore_encode(CodecContext settings, WriteBuffer buf, obj):
     buf.write_buffer(item_buf)
 
 
-cdef hstore_decode(CodecContext settings, FastReadBuffer buf):
+cdef hstore_decode(CodecContext settings, frb.Buffer *buf):
     cdef:
         dict result
         uint32_t elem_count
@@ -51,22 +51,22 @@ cdef hstore_decode(CodecContext settings, FastReadBuffer buf):
 
     result = {}
 
-    elem_count = <uint32_t>hton.unpack_int32(buf.read(4))
+    elem_count = <uint32_t>hton.unpack_int32(frb.read(buf, 4))
     if elem_count == 0:
         return result
 
     for i in range(elem_count):
-        elem_len = hton.unpack_int32(buf.read(4))
+        elem_len = hton.unpack_int32(frb.read(buf, 4))
         if elem_len < 0:
             raise ValueError('null value not allowed in hstore key')
 
-        k = decode_pg_string(settings, buf.read(elem_len), elem_len)
+        k = decode_pg_string(settings, frb.read(buf, elem_len), elem_len)
 
-        elem_len = hton.unpack_int32(buf.read(4))
+        elem_len = hton.unpack_int32(frb.read(buf, 4))
         if elem_len < 0:
             v = None
         else:
-            v = decode_pg_string(settings, buf.read(elem_len), elem_len)
+            v = decode_pg_string(settings, frb.read(buf, elem_len), elem_len)
 
         result[k] = v
 

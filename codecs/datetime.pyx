@@ -78,9 +78,9 @@ cdef inline _encode_time(WriteBuffer buf, int64_t seconds,
         buf.write_int64(ts)
 
 
-cdef inline int32_t _decode_time(FastReadBuffer buf, int64_t *seconds,
+cdef inline int32_t _decode_time(frb.Buffer *buf, int64_t *seconds,
                                  int32_t *microseconds):
-    cdef int64_t ts = hton.unpack_int64(buf.read(8))
+    cdef int64_t ts = hton.unpack_int64(frb.read(buf, 8))
 
     if ts == pg_time64_infinity:
         return 1
@@ -122,8 +122,8 @@ cdef date_encode_tuple(CodecContext settings, WriteBuffer buf, obj):
     buf.write_int32(pg_ordinal)
 
 
-cdef date_decode(CodecContext settings, FastReadBuffer buf):
-    cdef int32_t pg_ordinal = hton.unpack_int32(buf.read(4))
+cdef date_decode(CodecContext settings, frb.Buffer *buf):
+    cdef int32_t pg_ordinal = hton.unpack_int32(frb.read(buf, 4))
 
     if pg_ordinal == pg_date_infinity:
         return infinity_date
@@ -133,8 +133,8 @@ cdef date_decode(CodecContext settings, FastReadBuffer buf):
         return date_from_ordinal(pg_ordinal + pg_date_offset_ord)
 
 
-cdef date_decode_tuple(CodecContext settings, FastReadBuffer buf):
-    cdef int32_t pg_ordinal = hton.unpack_int32(buf.read(4))
+cdef date_decode_tuple(CodecContext settings, frb.Buffer *buf):
+    cdef int32_t pg_ordinal = hton.unpack_int32(frb.read(buf, 4))
 
     return (pg_ordinal,)
 
@@ -175,7 +175,7 @@ cdef timestamp_encode_tuple(CodecContext settings, WriteBuffer buf, obj):
     buf.write_int64(microseconds)
 
 
-cdef timestamp_decode(CodecContext settings, FastReadBuffer buf):
+cdef timestamp_decode(CodecContext settings, frb.Buffer *buf):
     cdef:
         int64_t seconds = 0
         int32_t microseconds = 0
@@ -192,9 +192,9 @@ cdef timestamp_decode(CodecContext settings, FastReadBuffer buf):
             timedelta(0, seconds, microseconds))
 
 
-cdef timestamp_decode_tuple(CodecContext settings, FastReadBuffer buf):
+cdef timestamp_decode_tuple(CodecContext settings, frb.Buffer *buf):
     cdef:
-        int64_t ts = hton.unpack_int64(buf.read(8))
+        int64_t ts = hton.unpack_int64(frb.read(buf, 8))
 
     return (ts,)
 
@@ -236,7 +236,7 @@ cdef timestamptz_encode(CodecContext settings, WriteBuffer buf, obj):
     _encode_time(buf, seconds, microseconds)
 
 
-cdef timestamptz_decode(CodecContext settings, FastReadBuffer buf):
+cdef timestamptz_decode(CodecContext settings, frb.Buffer *buf):
     cdef:
         int64_t seconds = 0
         int32_t microseconds = 0
@@ -279,7 +279,7 @@ cdef time_encode_tuple(CodecContext settings, WriteBuffer buf, obj):
     buf.write_int64(microseconds)
 
 
-cdef time_decode(CodecContext settings, FastReadBuffer buf):
+cdef time_decode(CodecContext settings, frb.Buffer *buf):
     cdef:
         int64_t seconds = 0
         int32_t microseconds = 0
@@ -295,9 +295,9 @@ cdef time_decode(CodecContext settings, FastReadBuffer buf):
     return datetime.time(hours, min, sec, microseconds)
 
 
-cdef time_decode_tuple(CodecContext settings, FastReadBuffer buf):
+cdef time_decode_tuple(CodecContext settings, frb.Buffer *buf):
     cdef:
-        int64_t ts = hton.unpack_int64(buf.read(8))
+        int64_t ts = hton.unpack_int64(frb.read(buf, 8))
 
     return (ts,)
 
@@ -342,17 +342,17 @@ cdef timetz_encode_tuple(CodecContext settings, WriteBuffer buf, obj):
     buf.write_int32(offset_sec)
 
 
-cdef timetz_decode(CodecContext settings, FastReadBuffer buf):
+cdef timetz_decode(CodecContext settings, frb.Buffer *buf):
     time = time_decode(settings, buf)
-    cdef int32_t offset = <int32_t>(hton.unpack_int32(buf.read(4)) / 60)
+    cdef int32_t offset = <int32_t>(hton.unpack_int32(frb.read(buf, 4)) / 60)
     # See the comment in the `timetz_encode` method.
     return time.replace(tzinfo=datetime.timezone(timedelta(minutes=-offset)))
 
 
-cdef timetz_decode_tuple(CodecContext settings, FastReadBuffer buf):
+cdef timetz_decode_tuple(CodecContext settings, frb.Buffer *buf):
     cdef:
-        int64_t microseconds = hton.unpack_int64(buf.read(8))
-        int32_t offset_sec = hton.unpack_int32(buf.read(4))
+        int64_t microseconds = hton.unpack_int64(frb.read(buf, 8))
+        int32_t offset_sec = hton.unpack_int32(frb.read(buf, 4))
 
     return (microseconds, offset_sec)
 
@@ -391,7 +391,7 @@ cdef interval_encode_tuple(CodecContext settings, WriteBuffer buf,
     buf.write_int32(months)
 
 
-cdef interval_decode(CodecContext settings, FastReadBuffer buf):
+cdef interval_decode(CodecContext settings, frb.Buffer *buf):
     cdef:
         int32_t days
         int32_t months
@@ -401,8 +401,8 @@ cdef interval_decode(CodecContext settings, FastReadBuffer buf):
 
     _decode_time(buf, &seconds, &microseconds)
 
-    days = hton.unpack_int32(buf.read(4))
-    months = hton.unpack_int32(buf.read(4))
+    days = hton.unpack_int32(frb.read(buf, 4))
+    months = hton.unpack_int32(frb.read(buf, 4))
 
     if months < 0:
         years = -<int32_t>(-months // 12)
@@ -415,14 +415,14 @@ cdef interval_decode(CodecContext settings, FastReadBuffer buf):
                               seconds=seconds, microseconds=microseconds)
 
 
-cdef interval_decode_tuple(CodecContext settings, FastReadBuffer buf):
+cdef interval_decode_tuple(CodecContext settings, frb.Buffer *buf):
     cdef:
         int32_t days
         int32_t months
         int64_t microseconds
 
-    microseconds = hton.unpack_int64(buf.read(8))
-    days = hton.unpack_int32(buf.read(4))
-    months = hton.unpack_int32(buf.read(4))
+    microseconds = hton.unpack_int64(frb.read(buf, 8))
+    days = hton.unpack_int32(frb.read(buf, 4))
+    months = hton.unpack_int32(frb.read(buf, 4))
 
     return (months, days, microseconds)

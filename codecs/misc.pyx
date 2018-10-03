@@ -10,7 +10,7 @@ cdef void_encode(CodecContext settings, WriteBuffer buf, obj):
     buf.write_int32(0)
 
 
-cdef void_decode(CodecContext settings, FastReadBuffer buf):
+cdef void_decode(CodecContext settings, frb.Buffer *buf):
     # Do nothing; void will be passed as NULL so this function
     # will never be called.
     pass

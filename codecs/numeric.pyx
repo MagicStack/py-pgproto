@@ -24,7 +24,7 @@ cdef numeric_encode_text(CodecContext settings, WriteBuffer buf, obj):
     text_encode(settings, buf, str(obj))
 
 
-cdef numeric_decode_text(CodecContext settings, FastReadBuffer buf):
+cdef numeric_decode_text(CodecContext settings, frb.Buffer *buf):
     return _Dec(text_decode(settings, buf))
 
 
@@ -129,12 +129,12 @@ cdef numeric_encode_binary(CodecContext settings, WriteBuffer buf, obj):
 # For this reason the below code is pure overhead and is ~25% slower
 # than the simple text decoder above.  That said, we need the binary
 # decoder to support binary COPY with numeric values.
-cdef numeric_decode_binary(CodecContext settings, FastReadBuffer buf):
+cdef numeric_decode_binary(CodecContext settings, frb.Buffer *buf):
     cdef:
-        uint16_t num_pgdigits = <uint16_t>hton.unpack_int16(buf.read(2))
-        int16_t weight = hton.unpack_int16(buf.read(2))
-        uint16_t sign = <uint16_t>hton.unpack_int16(buf.read(2))
-        uint16_t dscale = <uint16_t>hton.unpack_int16(buf.read(2))
+        uint16_t num_pgdigits = <uint16_t>hton.unpack_int16(frb.read(buf, 2))
+        int16_t weight = hton.unpack_int16(frb.read(buf, 2))
+        uint16_t sign = <uint16_t>hton.unpack_int16(frb.read(buf, 2))
+        uint16_t dscale = <uint16_t>hton.unpack_int16(frb.read(buf, 2))
         int16_t pgdigit0
         ssize_t i
         int16_t pgdigit
@@ -161,7 +161,7 @@ cdef numeric_decode_binary(CodecContext settings, FastReadBuffer buf):
         # Zero
         return _Dec('0e-' + str(dscale))
 
-    pgdigit0 = hton.unpack_int16(buf.read(2))
+    pgdigit0 = hton.unpack_int16(frb.read(buf, 2))
     if weight >= 0:
         if pgdigit0 < 10:
             front_padding = 3
@@ -211,7 +211,7 @@ cdef numeric_decode_binary(CodecContext settings, FastReadBuffer buf):
             bufptr = _unpack_digit(bufptr, pgdigit0)
 
         for i in range(1, num_pgdigits):
-            pgdigit = hton.unpack_int16(buf.read(2))
+            pgdigit = hton.unpack_int16(frb.read(buf, 2))
             bufptr = _unpack_digit(bufptr, pgdigit)
 
         if dscale:

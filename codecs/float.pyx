@@ -18,8 +18,8 @@ cdef float4_encode(CodecContext settings, WriteBuffer buf, obj):
     buf.write_float(fval)
 
 
-cdef float4_decode(CodecContext settings, FastReadBuffer buf):
-    cdef float f = hton.unpack_float(buf.read(4))
+cdef float4_decode(CodecContext settings, frb.Buffer *buf):
+    cdef float f = hton.unpack_float(frb.read(buf, 4))
     return cpython.PyFloat_FromDouble(f)
 
 
@@ -29,6 +29,6 @@ cdef float8_encode(CodecContext settings, WriteBuffer buf, obj):
     buf.write_double(dval)
 
 
-cdef float8_decode(CodecContext settings, FastReadBuffer buf):
-    cdef double f = hton.unpack_double(buf.read(8))
+cdef float8_decode(CodecContext settings, frb.Buffer *buf):
+    cdef double f = hton.unpack_double(frb.read(buf, 8))
     return cpython.PyFloat_FromDouble(f)

@@ -10,6 +10,8 @@ cimport cpython
 
 from libc.stdint cimport int16_t, int32_t, uint16_t, uint32_t, int64_t, uint64_t
 
+from . cimport frb
+
 
 include "./consts.pxi"
 include "./buffer.pxd"

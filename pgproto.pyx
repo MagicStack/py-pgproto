@@ -16,7 +16,9 @@ from libc.stdint cimport int8_t, uint8_t, int16_t, uint16_t, \
                          UINT32_MAX, INT64_MIN, INT64_MAX
 
 
+from . cimport frb
 from . cimport hton
+
 from .debug cimport PG_DEBUG
 
 

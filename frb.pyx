@@ -5,15 +5,8 @@
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
 
-cimport cython
-cimport cpython
-
-from libc.stdint cimport int16_t, int32_t, uint16_t, uint32_t, int64_t, uint64_t
-
-
-include "./consts.pxi"
-include "./frb.pxd"
-include "./buffer.pxd"
-
-
-include "./codecs/__init__.pxd"
+cdef object frb_check(FRBuffer *frb, ssize_t n):
+    if n > frb.len:
+        raise AssertionError(
+            f'insufficient data in buffer: requested {n} '
+            f'remaining {frb.len}')

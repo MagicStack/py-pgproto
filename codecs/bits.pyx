@@ -41,10 +41,10 @@ cdef bits_encode(CodecContext settings, WriteBuffer wbuf, obj):
             cpython.PyBuffer_Release(&pybuf)
 
 
-cdef bits_decode(CodecContext settings, FastReadBuffer buf):
+cdef bits_decode(CodecContext settings, FRBuffer *buf):
     cdef:
-        int32_t bitlen = hton.unpack_int32(buf.read(4))
+        int32_t bitlen = hton.unpack_int32(frb_read(buf, 4))
         ssize_t buf_len = buf.len
 
-    bytes_ = cpython.PyBytes_FromStringAndSize(buf.read_all(), buf_len)
+    bytes_ = cpython.PyBytes_FromStringAndSize(frb_read_all(buf), buf_len)
     return BitString.frombytes(bytes_, bitlen)

@@ -18,5 +18,5 @@ cdef uuid_encode(CodecContext settings, WriteBuffer wbuf, obj):
     bytea_encode(settings, wbuf, obj.bytes)
 
 
-cdef uuid_decode(CodecContext settings, FastReadBuffer buf):
+cdef uuid_decode(CodecContext settings, FRBuffer *buf):
     return _UUID(bytes=bytea_decode(settings, buf))

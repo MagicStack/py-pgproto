@@ -14,8 +14,8 @@ cdef bool_encode(CodecContext settings, WriteBuffer buf, obj):
     buf.write_byte(b'\x01' if obj is True else b'\x00')
 
 
-cdef bool_decode(CodecContext settings, FastReadBuffer buf):
-    return buf.read(1)[0] is b'\x01'
+cdef bool_decode(CodecContext settings, FRBuffer *buf):
+    return frb_read(buf, 1)[0] is b'\x01'
 
 
 cdef int2_encode(CodecContext settings, WriteBuffer buf, obj):
@@ -34,8 +34,8 @@ cdef int2_encode(CodecContext settings, WriteBuffer buf, obj):
     buf.write_int16(<int16_t>val)
 
 
-cdef int2_decode(CodecContext settings, FastReadBuffer buf):
-    return cpython.PyLong_FromLong(hton.unpack_int16(buf.read(2)))
+cdef int2_decode(CodecContext settings, FRBuffer *buf):
+    return cpython.PyLong_FromLong(hton.unpack_int16(frb_read(buf, 2)))
 
 
 cdef int4_encode(CodecContext settings, WriteBuffer buf, obj):
@@ -55,8 +55,8 @@ cdef int4_encode(CodecContext settings, WriteBuffer buf, obj):
     buf.write_int32(<int32_t>val)
 
 
-cdef int4_decode(CodecContext settings, FastReadBuffer buf):
-    return cpython.PyLong_FromLong(hton.unpack_int32(buf.read(4)))
+cdef int4_decode(CodecContext settings, FRBuffer *buf):
+    return cpython.PyLong_FromLong(hton.unpack_int32(frb_read(buf, 4)))
 
 
 cdef uint4_encode(CodecContext settings, WriteBuffer buf, obj):
@@ -76,9 +76,9 @@ cdef uint4_encode(CodecContext settings, WriteBuffer buf, obj):
     buf.write_int32(<int32_t>val)
 
 
-cdef uint4_decode(CodecContext settings, FastReadBuffer buf):
+cdef uint4_decode(CodecContext settings, FRBuffer *buf):
     return cpython.PyLong_FromUnsignedLong(
-        <uint32_t>hton.unpack_int32(buf.read(4)))
+        <uint32_t>hton.unpack_int32(frb_read(buf, 4)))
 
 
 cdef int8_encode(CodecContext settings, WriteBuffer buf, obj):
@@ -98,5 +98,5 @@ cdef int8_encode(CodecContext settings, WriteBuffer buf, obj):
     buf.write_int64(<int64_t>val)
 
 
-cdef int8_decode(CodecContext settings, FastReadBuffer buf):
-    return cpython.PyLong_FromLongLong(hton.unpack_int64(buf.read(8)))
+cdef int8_decode(CodecContext settings, FRBuffer *buf):
+    return cpython.PyLong_FromLongLong(hton.unpack_int64(frb_read(buf, 8)))

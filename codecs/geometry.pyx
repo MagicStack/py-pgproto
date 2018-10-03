@@ -16,9 +16,9 @@ cdef inline _encode_points(WriteBuffer wbuf, object points):
         wbuf.write_double(point[1])
 
 
-cdef inline _decode_points(FastReadBuffer buf):
+cdef inline _decode_points(FRBuffer *buf):
     cdef:
-        int32_t npts = hton.unpack_int32(buf.read(4))
+        int32_t npts = hton.unpack_int32(frb_read(buf, 4))
         pts = cpython.PyTuple_New(npts)
         int32_t i
         object point
@@ -26,8 +26,8 @@ cdef inline _decode_points(FastReadBuffer buf):
         double y
 
     for i in range(npts):
-        x = hton.unpack_double(buf.read(8))
-        y = hton.unpack_double(buf.read(8))
+        x = hton.unpack_double(frb_read(buf, 8))
+        y = hton.unpack_double(frb_read(buf, 8))
         point = Point(x, y)
         cpython.Py_INCREF(point)
         cpython.PyTuple_SET_ITEM(pts, i, point)
@@ -40,12 +40,12 @@ cdef box_encode(CodecContext settings, WriteBuffer wbuf, obj):
     _encode_points(wbuf, (obj[0], obj[1]))
 
 
-cdef box_decode(CodecContext settings, FastReadBuffer buf):
+cdef box_decode(CodecContext settings, FRBuffer *buf):
     cdef:
-        double high_x = hton.unpack_double(buf.read(8))
-        double high_y = hton.unpack_double(buf.read(8))
-        double low_x = hton.unpack_double(buf.read(8))
-        double low_y = hton.unpack_double(buf.read(8))
+        double high_x = hton.unpack_double(frb_read(buf, 8))
+        double high_y = hton.unpack_double(frb_read(buf, 8))
+        double low_x = hton.unpack_double(frb_read(buf, 8))
+        double low_y = hton.unpack_double(frb_read(buf, 8))
 
     return Box(Point(high_x, high_y), Point(low_x, low_y))
 
@@ -57,11 +57,11 @@ cdef line_encode(CodecContext settings, WriteBuffer wbuf, obj):
     wbuf.write_double(obj[2])
 
 
-cdef line_decode(CodecContext settings, FastReadBuffer buf):
+cdef line_decode(CodecContext settings, FRBuffer *buf):
     cdef:
-        double A = hton.unpack_double(buf.read(8))
-        double B = hton.unpack_double(buf.read(8))
-        double C = hton.unpack_double(buf.read(8))
+        double A = hton.unpack_double(frb_read(buf, 8))
+        double B = hton.unpack_double(frb_read(buf, 8))
+        double C = hton.unpack_double(frb_read(buf, 8))
 
     return Line(A, B, C)
 
@@ -71,12 +71,12 @@ cdef lseg_encode(CodecContext settings, WriteBuffer wbuf, obj):
     _encode_points(wbuf, (obj[0], obj[1]))
 
 
-cdef lseg_decode(CodecContext settings, FastReadBuffer buf):
+cdef lseg_decode(CodecContext settings, FRBuffer *buf):
     cdef:
-        double p1_x = hton.unpack_double(buf.read(8))
-        double p1_y = hton.unpack_double(buf.read(8))
-        double p2_x = hton.unpack_double(buf.read(8))
-        double p2_y = hton.unpack_double(buf.read(8))
+        double p1_x = hton.unpack_double(frb_read(buf, 8))
+        double p1_y = hton.unpack_double(frb_read(buf, 8))
+        double p2_x = hton.unpack_double(frb_read(buf, 8))
+        double p2_y = hton.unpack_double(frb_read(buf, 8))
 
     return LineSegment((p1_x, p1_y), (p2_x, p2_y))
 
@@ -87,10 +87,10 @@ cdef point_encode(CodecContext settings, WriteBuffer wbuf, obj):
     wbuf.write_double(obj[1])
 
 
-cdef point_decode(CodecContext settings, FastReadBuffer buf):
+cdef point_decode(CodecContext settings, FRBuffer *buf):
     cdef:
-        double x = hton.unpack_double(buf.read(8))
-        double y = hton.unpack_double(buf.read(8))
+        double x = hton.unpack_double(frb_read(buf, 8))
+        double y = hton.unpack_double(frb_read(buf, 8))
 
     return Point(x, y)
 
@@ -121,9 +121,9 @@ cdef path_encode(CodecContext settings, WriteBuffer wbuf, obj):
     _encode_points(wbuf, obj)
 
 
-cdef path_decode(CodecContext settings, FastReadBuffer buf):
+cdef path_decode(CodecContext settings, FRBuffer *buf):
     cdef:
-        int8_t is_closed = <int8_t>buf.read(1)[0]
+        int8_t is_closed = <int8_t>(frb_read(buf, 1)[0])
 
     return Path(*_decode_points(buf), is_closed=is_closed == 1)
 
@@ -145,7 +145,7 @@ cdef poly_encode(CodecContext settings, WriteBuffer wbuf, obj):
     _encode_points(wbuf, obj)
 
 
-cdef poly_decode(CodecContext settings, FastReadBuffer buf):
+cdef poly_decode(CodecContext settings, FRBuffer *buf):
     return Polygon(*_decode_points(buf))
 
 
@@ -156,10 +156,10 @@ cdef circle_encode(CodecContext settings, WriteBuffer wbuf, obj):
     wbuf.write_double(obj[1])
 
 
-cdef circle_decode(CodecContext settings, FastReadBuffer buf):
+cdef circle_decode(CodecContext settings, FRBuffer *buf):
     cdef:
-        double center_x = hton.unpack_double(buf.read(8))
-        double center_y = hton.unpack_double(buf.read(8))
-        double radius = hton.unpack_double(buf.read(8))
+        double center_x = hton.unpack_double(frb_read(buf, 8))
+        double center_y = hton.unpack_double(frb_read(buf, 8))
+        double radius = hton.unpack_double(frb_read(buf, 8))
 
     return Circle((center_x, center_y), radius)

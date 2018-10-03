@@ -40,12 +40,12 @@ cdef tid_encode(CodecContext settings, WriteBuffer buf, obj):
     buf.write_int16(<int16_t>offset)
 
 
-cdef tid_decode(CodecContext settings, FastReadBuffer buf):
+cdef tid_decode(CodecContext settings, FRBuffer *buf):
     cdef:
         uint32_t block
         uint16_t offset
 
-    block = <uint32_t>hton.unpack_int32(buf.read(4))
-    offset = <uint16_t>hton.unpack_int16(buf.read(2))
+    block = <uint32_t>hton.unpack_int32(frb_read(buf, 4))
+    offset = <uint16_t>hton.unpack_int16(frb_read(buf, 2))
 
     return (block, offset)

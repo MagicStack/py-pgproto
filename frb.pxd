@@ -45,8 +45,4 @@ cdef:
         frb.len = len
         return frb
 
-    inline object check(Buffer *frb, ssize_t n):
-        if n > frb.len:
-            raise AssertionError(
-                'insufficient data in buffer: requested {}, remaining {}'.
-                    format(n, frb.len))
+    object check(Buffer *frb, ssize_t n)

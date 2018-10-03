@@ -5,28 +5,6 @@
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
 
-@cython.no_gc_clear
-@cython.final
-@cython.freelist(_MEMORY_FREELIST_SIZE)
-cdef class Memory:
-    cdef:
-        const char *buf
-        object owner
-        ssize_t length
-
-    cdef inline as_bytes(self):
-        return cpython.PyBytes_FromStringAndSize(self.buf, self.length)
-
-    @staticmethod
-    cdef inline Memory new(const char* buf, object owner, ssize_t length):
-        cdef Memory mem
-        mem = Memory.__new__(Memory)
-        mem.buf = buf
-        mem.owner = owner
-        mem.length = length
-        return mem
-
-
 cdef class WriteBuffer:
     cdef:
         # Preallocated small buffer
@@ -118,9 +96,9 @@ cdef class ReadBuffer:
     cdef _switch_to_next_buf(self)
     cdef inline char read_byte(self) except? -1
     cdef inline const char* _try_read_bytes(self, ssize_t nbytes)
-    cdef inline _read(self, char *buf, ssize_t nbytes)
-    cdef read(self, ssize_t nbytes)
-    cdef inline const char* read_bytes(self, ssize_t n) except NULL
+    cdef inline _read_into(self, char *buf, ssize_t nbytes)
+    cdef inline _read_and_discard(self, ssize_t nbytes)
+    cdef bytes read_bytes(self, ssize_t nbytes)
     cdef inline int32_t read_int32(self) except? -1
     cdef inline int16_t read_int16(self) except? -1
     cdef inline read_cstr(self)
@@ -128,8 +106,9 @@ cdef class ReadBuffer:
     cdef inline int32_t take_message_type(self, char mtype) except -1
     cdef int32_t put_message(self) except -1
     cdef inline const char* try_consume_message(self, ssize_t* len)
-    cdef Memory consume_message(self)
-    cdef read_messages(self, WriteBuffer buf, char mtype)
+    cdef bytes consume_message(self)
+    cdef discard_message(self)
+    cdef redirect_messages(self, WriteBuffer buf, char mtype)
     cdef bytearray consume_messages(self, char mtype)
     cdef finish_message(self)
     cdef inline _finish_message(self)

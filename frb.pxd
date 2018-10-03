@@ -5,10 +5,8 @@
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
 
-from . import exceptions
-
-
 cdef:
+
     struct Buffer:
         const char* buf
         ssize_t len
@@ -26,7 +24,8 @@ cdef:
     inline const char* read(Buffer *frb, ssize_t n) except NULL:
         cdef const char *result
 
-        check(frb, n)
+        if n > frb.len:
+            check(frb, n)
 
         result = frb.buf
         frb.buf += n
@@ -48,6 +47,6 @@ cdef:
 
     inline object check(Buffer *frb, ssize_t n):
         if n > frb.len:
-            raise exceptions.BufferError(
+            raise AssertionError(
                 'insufficient data in buffer: requested {}, remaining {}'.
                     format(n, frb.len))

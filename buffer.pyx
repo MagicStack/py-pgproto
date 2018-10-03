@@ -14,13 +14,6 @@ from . import exceptions
 
 @cython.no_gc_clear
 @cython.final
-@cython.freelist(_MEMORY_FREELIST_SIZE)
-cdef class Memory:
-    pass
-
-
-@cython.no_gc_clear
-@cython.final
 @cython.freelist(_BUFFER_FREELIST_SIZE)
 cdef class WriteBuffer:
 
@@ -318,7 +311,7 @@ cdef class ReadBuffer:
         else:
             return NULL
 
-    cdef inline _read(self, char *buf, ssize_t nbytes):
+    cdef inline _read_into(self, char *buf, ssize_t nbytes):
         cdef:
             ssize_t nread
             char *buf0
@@ -341,9 +334,26 @@ cdef class ReadBuffer:
                 self._length -= nbytes
                 break
 
-    cdef read(self, ssize_t nbytes):
+    cdef inline _read_and_discard(self, ssize_t nbytes):
         cdef:
-            bytearray result
+            ssize_t nread
+
+        while True:
+            if self._pos0 + nbytes > self._len0:
+                nread = self._len0 - self._pos0
+                self._pos0 = self._len0
+                self._length -= nread
+                nbytes -= nread
+                self._ensure_first_buf()
+
+            else:
+                self._pos0 += nbytes
+                self._length -= nbytes
+                break
+
+    cdef bytes read_bytes(self, ssize_t nbytes):
+        cdef:
+            bytes result
             ssize_t nread
             const char *cbuf
             char *buf
@@ -351,7 +361,7 @@ cdef class ReadBuffer:
         self._ensure_first_buf()
         cbuf = self._try_read_bytes(nbytes)
         if cbuf != NULL:
-            return Memory.new(cbuf, self._buf0, nbytes)
+            return cpython.PyBytes_FromStringAndSize(cbuf, nbytes)
 
         if nbytes > self._length:
             raise exceptions.BufferError(
@@ -362,11 +372,10 @@ cdef class ReadBuffer:
             if self._current_message_len_unread < 0:
                 raise exceptions.BufferError('buffer overread')
 
-        result = cpythonx.PyByteArray_FromStringAndSize(NULL, nbytes)
-        buf = cpythonx.PyByteArray_AsString(result)
-        self._read(buf, nbytes)
-
-        return Memory.new(buf, result, nbytes)
+        result = cpython.PyBytes_FromStringAndSize(NULL, nbytes)
+        buf = cpython.PyBytes_AS_STRING(result)
+        self._read_into(buf, nbytes)
+        return result
 
     cdef inline char read_byte(self) except? -1:
         cdef const char *first_byte
@@ -383,22 +392,9 @@ cdef class ReadBuffer:
 
         return first_byte[0]
 
-    cdef inline const char* read_bytes(self, ssize_t n) except NULL:
-        cdef:
-            Memory mem
-            const char *cbuf
-
-        self._ensure_first_buf()
-        cbuf = self._try_read_bytes(n)
-        if cbuf != NULL:
-            return cbuf
-        else:
-            mem = <Memory>(self.read(n))
-            return mem.buf
-
     cdef inline int32_t read_int32(self) except? -1:
         cdef:
-            Memory mem
+            bytes mem
             const char *cbuf
 
         self._ensure_first_buf()
@@ -406,12 +402,12 @@ cdef class ReadBuffer:
         if cbuf != NULL:
             return hton.unpack_int32(cbuf)
         else:
-            mem = <Memory>(self.read(4))
-            return hton.unpack_int32(mem.buf)
+            mem = self.read_bytes(4)
+            return hton.unpack_int32(cpython.PyBytes_AS_STRING(mem))
 
     cdef inline int16_t read_int16(self) except? -1:
         cdef:
-            Memory mem
+            bytes mem
             const char *cbuf
 
         self._ensure_first_buf()
@@ -419,8 +415,8 @@ cdef class ReadBuffer:
         if cbuf != NULL:
             return hton.unpack_int16(cbuf)
         else:
-            mem = <Memory>(self.read(2))
-            return hton.unpack_int16(mem.buf)
+            mem = self.read_bytes(2)
+            return hton.unpack_int16(cpython.PyBytes_AS_STRING(mem))
 
     cdef inline read_cstr(self):
         if not self._current_message_ready:
@@ -550,17 +546,25 @@ cdef class ReadBuffer:
             self._finish_message()
         return buf
 
-    cdef Memory consume_message(self):
+    cdef discard_message(self):
+        if not self._current_message_ready:
+            raise exceptions.BufferError('no message to discard')
+        if self._current_message_len_unread > 0:
+            self._read_and_discard(self._current_message_len_unread)
+            self._current_message_len_unread = 0
+        self._finish_message()
+
+    cdef bytes consume_message(self):
         if not self._current_message_ready:
             raise exceptions.BufferError('no message to consume')
         if self._current_message_len_unread > 0:
-            mem = self.read(self._current_message_len_unread)
+            mem = self.read_bytes(self._current_message_len_unread)
         else:
-            mem = None
+            mem = b''
         self._finish_message()
         return mem
 
-    cdef read_messages(self, WriteBuffer buf, char mtype):
+    cdef redirect_messages(self, WriteBuffer buf, char mtype):
         if not self._current_message_ready:
             raise exceptions.BufferError(
                 'consume_full_messages called on a buffer without a '
@@ -573,7 +577,6 @@ cdef class ReadBuffer:
                 'consume_full_messages called on a partially read message')
 
         cdef:
-            Memory mem
             const char* cbuf
             ssize_t cbuf_len
 
@@ -585,8 +588,7 @@ cdef class ReadBuffer:
             if cbuf != NULL:
                 buf.write_cstr(cbuf, cbuf_len)
             else:
-                mem = buf.consume_message()
-                buf.write_cstr(mem.buf, mem.length)
+                buf.write_bytes(self.consume_message())
 
             if not self.has_message() or self._current_message_type != mtype:
                 break
@@ -612,7 +614,7 @@ cdef class ReadBuffer:
 
         while self.take_message_type(mtype):
             nbytes = self._current_message_len_unread
-            self._read(buf, nbytes)
+            self._read_into(buf, nbytes)
             buf += nbytes
             total_bytes += nbytes
             self._finish_message()
@@ -637,7 +639,7 @@ cdef class ReadBuffer:
             if PG_DEBUG:
                 print('!!! discarding message {!r} unread data: {!r}'.format(
                     mtype,
-                    (<Memory>discarded).as_bytes()))
+                    discarded))
 
         self._finish_message()
 

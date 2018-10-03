@@ -29,6 +29,6 @@ cdef bytea_encode(CodecContext settings, WriteBuffer wbuf, obj):
             cpython.PyBuffer_Release(&pybuf)
 
 
-cdef bytea_decode(CodecContext settings, frb.Buffer *buf):
+cdef bytea_decode(CodecContext settings, FRBuffer *buf):
     cdef ssize_t buf_len = buf.len
-    return cpython.PyBytes_FromStringAndSize(frb.read_all(buf), buf_len)
+    return cpython.PyBytes_FromStringAndSize(frb_read_all(buf), buf_len)

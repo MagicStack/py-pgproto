@@ -43,6 +43,6 @@ cdef inline decode_pg_string(CodecContext settings, const char* data,
         return settings.get_text_codec().decode(bytes)
 
 
-cdef text_decode(CodecContext settings, frb.Buffer *buf):
+cdef text_decode(CodecContext settings, FRBuffer *buf):
     cdef ssize_t buf_len = buf.len
-    return decode_pg_string(settings, frb.read_all(buf), buf_len)
+    return decode_pg_string(settings, frb_read_all(buf), buf_len)

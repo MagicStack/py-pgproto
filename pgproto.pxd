@@ -14,6 +14,7 @@ from . cimport frb
 
 
 include "./consts.pxi"
+include "./frb.pxd"
 include "./buffer.pxd"
 
 

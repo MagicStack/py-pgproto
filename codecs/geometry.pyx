@@ -5,9 +5,6 @@
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
 
-from ..types import Box, Line, LineSegment, Path, Point, Polygon, Circle
-
-
 cdef inline _encode_points(WriteBuffer wbuf, object points):
     cdef object point
 
@@ -28,7 +25,7 @@ cdef inline _decode_points(FRBuffer *buf):
     for i in range(npts):
         x = hton.unpack_double(frb_read(buf, 8))
         y = hton.unpack_double(frb_read(buf, 8))
-        point = Point(x, y)
+        point = pgproto_types.Point(x, y)
         cpython.Py_INCREF(point)
         cpython.PyTuple_SET_ITEM(pts, i, point)
 
@@ -47,7 +44,9 @@ cdef box_decode(CodecContext settings, FRBuffer *buf):
         double low_x = hton.unpack_double(frb_read(buf, 8))
         double low_y = hton.unpack_double(frb_read(buf, 8))
 
-    return Box(Point(high_x, high_y), Point(low_x, low_y))
+    return pgproto_types.Box(
+        pgproto_types.Point(high_x, high_y),
+        pgproto_types.Point(low_x, low_y))
 
 
 cdef line_encode(CodecContext settings, WriteBuffer wbuf, obj):
@@ -63,7 +62,7 @@ cdef line_decode(CodecContext settings, FRBuffer *buf):
         double B = hton.unpack_double(frb_read(buf, 8))
         double C = hton.unpack_double(frb_read(buf, 8))
 
-    return Line(A, B, C)
+    return pgproto_types.Line(A, B, C)
 
 
 cdef lseg_encode(CodecContext settings, WriteBuffer wbuf, obj):
@@ -78,7 +77,7 @@ cdef lseg_decode(CodecContext settings, FRBuffer *buf):
         double p2_x = hton.unpack_double(frb_read(buf, 8))
         double p2_y = hton.unpack_double(frb_read(buf, 8))
 
-    return LineSegment((p1_x, p1_y), (p2_x, p2_y))
+    return pgproto_types.LineSegment((p1_x, p1_y), (p2_x, p2_y))
 
 
 cdef point_encode(CodecContext settings, WriteBuffer wbuf, obj):
@@ -92,7 +91,7 @@ cdef point_decode(CodecContext settings, FRBuffer *buf):
         double x = hton.unpack_double(frb_read(buf, 8))
         double y = hton.unpack_double(frb_read(buf, 8))
 
-    return Point(x, y)
+    return pgproto_types.Point(x, y)
 
 
 cdef path_encode(CodecContext settings, WriteBuffer wbuf, obj):
@@ -106,7 +105,7 @@ cdef path_encode(CodecContext settings, WriteBuffer wbuf, obj):
         is_closed = 1
     elif cpython.PyList_Check(obj):
         is_closed = 0
-    elif isinstance(obj, Path):
+    elif isinstance(obj, pgproto_types.Path):
         is_closed = obj.is_closed
 
     npts = len(obj)
@@ -125,7 +124,7 @@ cdef path_decode(CodecContext settings, FRBuffer *buf):
     cdef:
         int8_t is_closed = <int8_t>(frb_read(buf, 1)[0])
 
-    return Path(*_decode_points(buf), is_closed=is_closed == 1)
+    return pgproto_types.Path(*_decode_points(buf), is_closed=is_closed == 1)
 
 
 cdef poly_encode(CodecContext settings, WriteBuffer wbuf, obj):
@@ -146,7 +145,7 @@ cdef poly_encode(CodecContext settings, WriteBuffer wbuf, obj):
 
 
 cdef poly_decode(CodecContext settings, FRBuffer *buf):
-    return Polygon(*_decode_points(buf))
+    return pgproto_types.Polygon(*_decode_points(buf))
 
 
 cdef circle_encode(CodecContext settings, WriteBuffer wbuf, obj):
@@ -162,4 +161,4 @@ cdef circle_decode(CodecContext settings, FRBuffer *buf):
         double center_y = hton.unpack_double(frb_read(buf, 8))
         double radius = hton.unpack_double(frb_read(buf, 8))
 
-    return Circle((center_x, center_y), radius)
+    return pgproto_types.Circle((center_x, center_y), radius)

@@ -19,6 +19,7 @@ from libc.stdint cimport int8_t, uint8_t, int16_t, uint16_t, \
 from . cimport hton
 
 from .debug cimport PG_DEBUG
+from . import types as pgproto_types
 
 
 include "./consts.pxi"

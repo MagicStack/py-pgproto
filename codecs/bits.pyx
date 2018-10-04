@@ -5,9 +5,6 @@
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
 
-from ..types import BitString
-
-
 cdef bits_encode(CodecContext settings, WriteBuffer wbuf, obj):
     cdef:
         Py_buffer pybuf
@@ -20,7 +17,7 @@ cdef bits_encode(CodecContext settings, WriteBuffer wbuf, obj):
         buf = cpython.PyBytes_AS_STRING(obj)
         len = cpython.Py_SIZE(obj)
         bitlen = len * 8
-    elif isinstance(obj, BitString):
+    elif isinstance(obj, pgproto_types.BitString):
         cpython.PyBytes_AsStringAndSize(obj.bytes, &buf, &len)
         bitlen = obj.__len__()
     else:
@@ -47,4 +44,4 @@ cdef bits_decode(CodecContext settings, FRBuffer *buf):
         ssize_t buf_len = buf.len
 
     bytes_ = cpython.PyBytes_FromStringAndSize(frb_read_all(buf), buf_len)
-    return BitString.frombytes(bytes_, bitlen)
+    return pgproto_types.BitString.frombytes(bytes_, bitlen)

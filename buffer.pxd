@@ -91,6 +91,18 @@ cdef class ReadBuffer:
         ssize_t _current_message_len_unread
         bint _current_message_ready
 
+    cdef inline len(self):
+        return self._length
+
+    cdef inline char get_message_type(self):
+        return self._current_message_type
+
+    cdef inline int32_t get_message_length(self):
+        return self._current_message_len
+
+    cdef inline read_utf8(self):
+        return self.read_cstr().decode('utf-8')
+
     cdef feed_data(self, data)
     cdef inline _ensure_first_buf(self)
     cdef _switch_to_next_buf(self)
@@ -112,12 +124,6 @@ cdef class ReadBuffer:
     cdef bytearray consume_messages(self, char mtype)
     cdef finish_message(self)
     cdef inline _finish_message(self)
-
-    cdef inline char get_message_type(self):
-        return self._current_message_type
-
-    cdef inline int32_t get_message_length(self):
-        return self._current_message_len
 
     @staticmethod
     cdef ReadBuffer new_message_parser(object data)

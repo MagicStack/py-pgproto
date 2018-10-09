@@ -590,7 +590,7 @@ cdef class ReadBuffer:
             else:
                 buf.write_bytes(self.consume_message())
 
-            if not self.has_message() or self._current_message_type != mtype:
+            if not self.take_message_type(mtype):
                 break
 
         return buf

@@ -595,19 +595,22 @@ cdef class ReadBuffer:
             else:
                 buf.write_bytes(self.consume_message())
 
-            # Fast path: exhaust buf0 as efficiently as possible
+            # Fast path: exhaust buf0 as efficiently as possible.
             self._ensure_first_buf()
             if self._pos0 + 5 <= self._len0:
                 cbuf = cpython.PyBytes_AS_STRING(self._buf0)
                 new_pos0 = self._pos0
+                cbuf_len = self._len0
 
                 done = 0
-                while new_pos0 + 5 <= self._len0:
+                # Scan the first buffer and find the position of the
+                # end of the last "mtype" message.
+                while new_pos0 + 5 <= cbuf_len:
                     if (cbuf + new_pos0)[0] != mtype:
                         done = 1
                         break
                     msg_len = hton.unpack_int32(cbuf + new_pos0 + 1) + 1
-                    if new_pos0 + msg_len > self._len0:
+                    if new_pos0 + msg_len > cbuf_len:
                         break
                     new_pos0 += msg_len
 
@@ -630,7 +633,7 @@ cdef class ReadBuffer:
                     # The next message is of a different type.
                     return
 
-            # Back to slow path
+            # Back to slow path.
             if not self.take_message_type(mtype):
                 return
 

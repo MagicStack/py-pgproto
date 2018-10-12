@@ -419,10 +419,10 @@ cdef class ReadBuffer:
             mem = self.read_bytes(2)
             return hton.unpack_int16(cpython.PyBytes_AS_STRING(mem))
 
-    cdef inline read_cstr(self):
+    cdef inline read_null_str(self):
         if not self._current_message_ready:
             raise exceptions.BufferError(
-                'read_cstr only works when the message guaranteed '
+                'read_null_str only works when the message guaranteed '
                 'to be in the buffer')
 
         cdef:
@@ -459,7 +459,8 @@ cdef class ReadBuffer:
 
                 self._current_message_len_unread -= nread
                 if self._current_message_len_unread < 0:
-                    raise exceptions.BufferError('read_cstr: buffer overread')
+                    raise exceptions.BufferError(
+                        'read_null_str: buffer overread')
 
                 return result
 
@@ -471,7 +472,8 @@ cdef class ReadBuffer:
 
                 self._current_message_len_unread -= nread
                 if self._current_message_len_unread < 0:
-                    raise exceptions.BufferError('read_cstr: buffer overread')
+                    raise exceptions.BufferError(
+                        'read_null_str: buffer overread')
 
                 self._ensure_first_buf()
 

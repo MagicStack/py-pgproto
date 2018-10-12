@@ -101,7 +101,7 @@ cdef class ReadBuffer:
         return self._current_message_len
 
     cdef inline read_utf8(self):
-        return self.read_cstr().decode('utf-8')
+        return self.read_null_str().decode('utf-8')
 
     cdef feed_data(self, data)
     cdef inline _ensure_first_buf(self)
@@ -113,7 +113,7 @@ cdef class ReadBuffer:
     cdef bytes read_bytes(self, ssize_t nbytes)
     cdef inline int32_t read_int32(self) except? -1
     cdef inline int16_t read_int16(self) except? -1
-    cdef inline read_cstr(self)
+    cdef inline read_null_str(self)
     cdef int32_t take_message(self) except -1
     cdef inline int32_t take_message_type(self, char mtype) except -1
     cdef int32_t put_message(self) except -1

@@ -87,7 +87,7 @@ cdef class ReadBuffer:
         ssize_t _length
 
         char _current_message_type
-        int _current_message_len
+        int32_t _current_message_len
         ssize_t _current_message_len_unread
         bint _current_message_ready
 

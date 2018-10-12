@@ -338,6 +338,7 @@ cdef class ReadBuffer:
         cdef:
             ssize_t nread
 
+        self._ensure_first_buf()
         while True:
             if self._pos0 + nbytes > self._len0:
                 nread = self._len0 - self._pos0
@@ -579,6 +580,10 @@ cdef class ReadBuffer:
         cdef:
             const char* cbuf
             ssize_t cbuf_len
+            int32_t msg_len
+            ssize_t new_pos0
+            ssize_t pos_delta
+            int32_t done
 
         while True:
             buf.write_byte(mtype)
@@ -590,10 +595,44 @@ cdef class ReadBuffer:
             else:
                 buf.write_bytes(self.consume_message())
 
-            if not self.take_message_type(mtype):
-                break
+            # Fast path: exhaust buf0 as efficiently as possible
+            self._ensure_first_buf()
+            if self._pos0 + 5 <= self._len0:
+                cbuf = cpython.PyBytes_AS_STRING(self._buf0)
+                new_pos0 = self._pos0
 
-        return buf
+                done = 0
+                while new_pos0 + 5 <= self._len0:
+                    if (cbuf + new_pos0)[0] != mtype:
+                        done = 1
+                        break
+                    msg_len = hton.unpack_int32(cbuf + new_pos0 + 1) + 1
+                    if new_pos0 + msg_len > self._len0:
+                        break
+                    new_pos0 += msg_len
+
+                if new_pos0 != self._pos0:
+                    if PG_DEBUG:
+                        assert self._pos0 < new_pos0 <= self._len0
+
+                    pos_delta = new_pos0 - self._pos0
+                    buf.write_cstr(
+                        cbuf + self._pos0,
+                        pos_delta)
+
+                    self._pos0 = new_pos0
+                    self._length -= pos_delta
+
+                    if PG_DEBUG:
+                        assert self._length >= 0
+
+                if done:
+                    # The next message is of a different type.
+                    return
+
+            # Back to slow path
+            if not self.take_message_type(mtype):
+                return
 
     cdef bytearray consume_messages(self, char mtype):
         """Consume consecutive messages of the same type."""
@@ -613,6 +652,7 @@ cdef class ReadBuffer:
         buf = cpythonx.PyByteArray_AsString(result)
 
         while self.take_message_type(mtype):
+            self._ensure_first_buf()
             nbytes = self._current_message_len_unread
             self._read_into(buf, nbytes)
             buf += nbytes

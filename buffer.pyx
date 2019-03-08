@@ -256,8 +256,11 @@ cdef class ReadBuffer:
         self._bufs_len += 1
 
     cdef inline _ensure_first_buf(self):
-        if self._len0 == 0:
-            raise exceptions.BufferError('empty first buffer')
+        if PG_DEBUG:
+            if self._len0 == 0:
+                raise exceptions.BufferError('empty first buffer')
+            if self._length == 0:
+                raise exceptions.BufferError('empty buffer')
 
         if self._pos0 == self._len0:
             self._switch_to_next_buf()
@@ -597,8 +600,12 @@ cdef class ReadBuffer:
             else:
                 buf.write_bytes(self.consume_message())
 
+            if self._length > 0:
+                self._ensure_first_buf()
+            else:
+                return
+
             # Fast path: exhaust buf0 as efficiently as possible.
-            self._ensure_first_buf()
             if self._pos0 + 5 <= self._len0:
                 cbuf = cpython.PyBytes_AS_STRING(self._buf0)
                 new_pos0 = self._pos0

@@ -8,6 +8,8 @@
 from cpython cimport Py_buffer
 
 cdef extern from "Python.h":
+    int PyUnicode_1BYTE_KIND
+
     int PyByteArray_Resize(object, ssize_t) except -1
     object PyByteArray_FromStringAndSize(const char *, ssize_t)
     char* PyByteArray_AsString(object)
@@ -15,3 +17,6 @@ cdef extern from "Python.h":
     object PyUnicode_FromString(const char *u)
     const char* PyUnicode_AsUTF8AndSize(
         object unicode, ssize_t *size) except NULL
+
+    object PyUnicode_FromKindAndData(
+        int kind, const void *buffer, Py_ssize_t size)

@@ -5,18 +5,23 @@
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
 
-import uuid
-
-
-_UUID = uuid.UUID
-
-
 cdef uuid_encode(CodecContext settings, WriteBuffer wbuf, obj):
-    if cpython.PyUnicode_Check(obj):
-        obj = _UUID(obj)
+    cdef:
+        char buf[16]
 
-    bytea_encode(settings, wbuf, obj.bytes)
+    if type(obj) is pg_UUID:
+        wbuf.write_int32(<int32_t>16)
+        wbuf.write_cstr((<PgBaseUUID>obj)._data, 16)
+    elif cpython.PyUnicode_Check(obj):
+        pg_uuid_bytes_from_str(obj, buf)
+        wbuf.write_int32(<int32_t>16)
+        wbuf.write_cstr(buf, 16)
+    else:
+        bytea_encode(settings, wbuf, obj.bytes)
 
 
 cdef uuid_decode(CodecContext settings, FRBuffer *buf):
-    return _UUID(bytes=bytea_decode(settings, buf))
+    if buf.len != 16:
+        raise TypeError(
+            f'cannot decode UUID, expected 16 bytes, got {buf.len}')
+    return pg_uuid_from_buf(frb_read_all(buf))

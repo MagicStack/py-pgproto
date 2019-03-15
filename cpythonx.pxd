@@ -13,4 +13,5 @@ cdef extern from "Python.h":
     char* PyByteArray_AsString(object)
 
     object PyUnicode_FromString(const char *u)
-    char* PyUnicode_AsUTF8AndSize(object unicode, ssize_t *size) except NULL
+    const char* PyUnicode_AsUTF8AndSize(
+        object unicode, ssize_t *size) except NULL

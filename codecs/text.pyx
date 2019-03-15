@@ -12,7 +12,7 @@ cdef inline as_pg_string_and_size(
         raise TypeError('expected str, got {}'.format(type(obj).__name__))
 
     if settings.is_encoding_utf8():
-        cstr[0] = cpythonx.PyUnicode_AsUTF8AndSize(obj, size)
+        cstr[0] = <char*>cpythonx.PyUnicode_AsUTF8AndSize(obj, size)
     else:
         encoded = settings.get_text_codec().encode(obj)
         cpython.PyBytes_AsStringAndSize(encoded, cstr, size)

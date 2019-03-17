@@ -134,23 +134,20 @@ cdef class PgBaseUUID:
     def __str__(self):
         cdef:
             uint64_t u
-            char buf[16]
             char out[36]
 
         u = <uint64_t>hton.unpack_int64(self._data)
-        i64_to_hex(u, buf)
-        memcpy(out, buf, 8)
-        out[8] = b'-'
-        memcpy(out + 9, buf + 8, 4)
-        out[13] = b'-'
-        memcpy(out + 14, buf + 12, 4)
-        out[18] = b'-'
-
+        i64_to_hex(u, out)
         u = <uint64_t>hton.unpack_int64(self._data + 8)
-        i64_to_hex(u, buf)
-        memcpy(out + 19, buf, 4)
+        i64_to_hex(u, out + 20)
+
+        memcpy(out + 14, out + 12, 4)
+        memcpy(out + 9, out + 8, 4)
+        memcpy(out + 19, out + 20, 4)
+        out[8] = b'-'
+        out[13] = b'-'
+        out[18] = b'-'
         out[23] = b'-'
-        memcpy(out + 24, buf + 4, 12)
 
         return cpythonx.PyUnicode_FromKindAndData(
             cpythonx.PyUnicode_1BYTE_KIND, <void*>out, 36)

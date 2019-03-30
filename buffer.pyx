@@ -154,6 +154,19 @@ cdef class WriteBuffer:
     cdef write_utf8(self, str string):
         self.write_bytestring(string.encode('utf-8'))
 
+    cdef write_len_prefixed_bytes(self, bytes data):
+        # Write a length-prefixed (not NULL-terminated) UTF-8 string.
+        cdef:
+            char *buf
+            ssize_t size
+
+        cpython.PyBytes_AsStringAndSize(data, &buf, &size)
+        if size > _MAXINT32:
+            raise exceptions.BufferError('string is too large')
+        # `size` does not account for the NULL at the end.
+        self.write_int32(<int32_t>size)
+        self.write_cstr(buf, size)
+
     cdef write_cstr(self, const char *data, ssize_t len):
         self._check_readonly()
         self._ensure_alloced(len)
@@ -380,6 +393,13 @@ cdef class ReadBuffer:
         buf = cpython.PyBytes_AS_STRING(result)
         self._read_into(buf, nbytes)
         return result
+
+    cdef bytes read_len_prefixed_bytes(self):
+        cdef int32_t size = self.read_int32()
+        if size < 0:
+            raise exceptions.BufferError(
+                'negative length for a len-prefixed bytes value')
+        return self.read_bytes(size)
 
     cdef inline char read_byte(self) except? -1:
         cdef const char *first_byte

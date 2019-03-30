@@ -36,6 +36,7 @@ cdef class WriteBuffer:
     cdef write_buffer(self, WriteBuffer buf)
     cdef write_byte(self, char b)
     cdef write_bytes(self, bytes data)
+    cdef write_len_prefixed_bytes(self, bytes data)
     cdef write_bytestring(self, bytes string)
     cdef write_str(self, str string, str encoding)
     cdef write_utf8(self, str string)
@@ -103,6 +104,9 @@ cdef class ReadBuffer:
     cdef inline read_utf8(self):
         return self.read_null_str().decode('utf-8')
 
+    cdef inline read_len_prefixed_utf8(self):
+        return self.read_len_prefixed_bytes().decode('utf-8')
+
     cdef feed_data(self, data)
     cdef inline _ensure_first_buf(self)
     cdef _switch_to_next_buf(self)
@@ -111,6 +115,7 @@ cdef class ReadBuffer:
     cdef inline _read_into(self, char *buf, ssize_t nbytes)
     cdef inline _read_and_discard(self, ssize_t nbytes)
     cdef bytes read_bytes(self, ssize_t nbytes)
+    cdef bytes read_len_prefixed_bytes(self)
     cdef inline int32_t read_int32(self) except? -1
     cdef inline int16_t read_int16(self) except? -1
     cdef inline read_null_str(self)

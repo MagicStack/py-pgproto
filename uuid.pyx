@@ -1,7 +1,7 @@
 import functools
 import uuid
 
-from libc.stdint cimport uint64_t, uint8_t
+from libc.stdint cimport uint64_t, uint8_t, int8_t
 from libc.string cimport memcpy
 
 
@@ -40,7 +40,7 @@ cdef inline char i64_to_hex(uint64_t num, char *s):
     return 0
 
 
-cdef pg_uuid_from_buf(char *buf):
+cdef pg_uuid_from_buf(const char *buf):
     cdef:
         PgBaseUUID u = UUID.__new__(UUID)
     memcpy(u._data, buf, 16)
@@ -69,7 +69,7 @@ cdef pg_uuid_bytes_from_str(str u, char *out):
         if ch == <unsigned char>b'-':
             continue
 
-        part = _hextable[ch]
+        part = <uint8_t><int8_t>_hextable[ch]
         if part == <uint8_t>-1:
             if ch >= 0x20 and ch <= 0x7e:
                 raise ValueError(

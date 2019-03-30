@@ -151,9 +151,6 @@ cdef class WriteBuffer:
     cdef write_str(self, str string, str encoding):
         self.write_bytestring(string.encode(encoding))
 
-    cdef write_utf8(self, str string):
-        self.write_bytestring(string.encode('utf-8'))
-
     cdef write_len_prefixed_bytes(self, bytes data):
         # Write a length-prefixed (not NULL-terminated) UTF-8 string.
         cdef:
@@ -400,6 +397,23 @@ cdef class ReadBuffer:
             raise exceptions.BufferError(
                 'negative length for a len-prefixed bytes value')
         return self.read_bytes(size)
+
+    cdef str read_len_prefixed_utf8(self):
+        cdef:
+            int32_t size
+            const char *cbuf
+
+        size = self.read_int32()
+        if size < 0:
+            raise exceptions.BufferError(
+                'negative length for a len-prefixed bytes value')
+
+        self._ensure_first_buf()
+        cbuf = self._try_read_bytes(size)
+        if cbuf != NULL:
+            return cpython.PyUnicode_DecodeUTF8(cbuf, size, NULL)
+        else:
+            return self.read_len_prefixed_bytes().decode('utf-8')
 
     cdef inline char read_byte(self) except? -1:
         cdef const char *first_byte

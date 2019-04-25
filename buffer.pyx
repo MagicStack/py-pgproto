@@ -396,6 +396,8 @@ cdef class ReadBuffer:
         if size < 0:
             raise exceptions.BufferError(
                 'negative length for a len-prefixed bytes value')
+        if size == 0:
+            return b''
         return self.read_bytes(size)
 
     cdef str read_len_prefixed_utf8(self):
@@ -407,6 +409,9 @@ cdef class ReadBuffer:
         if size < 0:
             raise exceptions.BufferError(
                 'negative length for a len-prefixed bytes value')
+
+        if size == 0:
+            return ''
 
         self._ensure_first_buf()
         cbuf = self._try_read_bytes(size)

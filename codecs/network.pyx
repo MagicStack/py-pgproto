@@ -15,6 +15,7 @@ DEF PGSQL_AF_INET6 = 3  # AF_INET + 1
 
 
 _ipaddr = ipaddress.ip_address
+_ipiface = ipaddress.ip_interface
 _ipnet = ipaddress.ip_network
 
 
@@ -59,14 +60,18 @@ cdef inline _net_encode(WriteBuffer buf, int8_t family, uint32_t bits,
     buf.write_cstr(addrbytes, addrlen)
 
 
-cdef net_decode(CodecContext settings, FRBuffer *buf):
+cdef net_decode(CodecContext settings, FRBuffer *buf, bint as_cidr):
     cdef:
         int32_t family = <int32_t>frb_read(buf, 1)[0]
         uint8_t bits = <uint8_t>frb_read(buf, 1)[0]
+        int prefix_len
         int32_t is_cidr = <int32_t>frb_read(buf, 1)[0]
         int32_t addrlen = <int32_t>frb_read(buf, 1)[0]
         bytes addr
         uint8_t max_prefix_len = _ip_max_prefix_len(family)
+
+    if is_cidr != as_cidr:
+        raise ValueError('unexpected CIDR flag set in non-cidr value')
 
     if family != PGSQL_AF_INET and family != PGSQL_AF_INET6:
         raise ValueError('invalid address family in "{}" value'.format(
@@ -87,8 +92,13 @@ cdef net_decode(CodecContext settings, FRBuffer *buf):
 
     addr = cpython.PyBytes_FromStringAndSize(frb_read(buf, addrlen), addrlen)
 
-    if is_cidr or bits != max_prefix_len:
-        return _ipnet(addr).supernet(new_prefix=cpython.PyLong_FromLong(bits))
+    if as_cidr or bits != max_prefix_len:
+        prefix_len = cpython.PyLong_FromLong(bits)
+
+        if as_cidr:
+            return _ipnet((addr, prefix_len))
+        else:
+            return _ipiface((addr, prefix_len))
     else:
         return _ipaddr(addr)
 
@@ -103,6 +113,10 @@ cdef cidr_encode(CodecContext settings, WriteBuffer buf, obj):
     _net_encode(buf, family, ipnet.prefixlen, 1, ipnet.network_address.packed)
 
 
+cdef cidr_decode(CodecContext settings, FRBuffer *buf):
+    return net_decode(settings, buf, True)
+
+
 cdef inet_encode(CodecContext settings, WriteBuffer buf, obj):
     cdef:
         object ipaddr
@@ -113,7 +127,13 @@ cdef inet_encode(CodecContext settings, WriteBuffer buf, obj):
     except ValueError:
         # PostgreSQL accepts *both* CIDR and host values
         # for the host datatype.
-        cidr_encode(settings, buf, obj)
+        ipaddr = _ipiface(obj)
+        family = _ver_to_family(ipaddr.version)
+        _net_encode(buf, family, ipaddr.network.prefixlen, 1, ipaddr.packed)
     else:
         family = _ver_to_family(ipaddr.version)
         _net_encode(buf, family, _ip_max_prefix_len(family), 0, ipaddr.packed)
+
+
+cdef inet_decode(CodecContext settings, FRBuffer *buf):
+    return net_decode(settings, buf, False)

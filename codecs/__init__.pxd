@@ -133,9 +133,10 @@ cdef tid_decode(CodecContext settings, FRBuffer * buf)
 
 
 # Network
-cdef net_decode(CodecContext settings, FRBuffer * buf)
 cdef cidr_encode(CodecContext settings, WriteBuffer buf, obj)
+cdef cidr_decode(CodecContext settings, FRBuffer * buf)
 cdef inet_encode(CodecContext settings, WriteBuffer buf, obj)
+cdef inet_decode(CodecContext settings, FRBuffer * buf)
 
 
 # txid

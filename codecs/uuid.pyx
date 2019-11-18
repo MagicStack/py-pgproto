@@ -11,7 +11,7 @@ cdef uuid_encode(CodecContext settings, WriteBuffer wbuf, obj):
 
     if type(obj) is pg_UUID:
         wbuf.write_int32(<int32_t>16)
-        wbuf.write_cstr((<PgBaseUUID>obj)._data, 16)
+        wbuf.write_cstr((<UUID>obj)._data, 16)
     elif cpython.PyUnicode_Check(obj):
         pg_uuid_bytes_from_str(obj, buf)
         wbuf.write_int32(<int32_t>16)

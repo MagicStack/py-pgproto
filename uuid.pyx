@@ -28,14 +28,11 @@ _hextable[:] = [
 
 
 cdef inline char i64_to_hex(uint64_t num, char *s):
-    cdef:
-        char i = 15
-        char ch
+    cdef uint8_t i
 
-    while i >= 0:
-        s[<uint8_t>i] = _hexmap[num & 0x0F]
+    for i in range(15, -1, -1):
+        s[i] = _hexmap[num & 0x0F]
         num >>= 4
-        i -= 1
 
     return 0
 

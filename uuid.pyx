@@ -1,15 +1,44 @@
 import functools
 import uuid
 
-from libc.stdint cimport uint64_t, uint8_t, int8_t
+from libc.stdint cimport uint8_t, int8_t
 from libc.string cimport memcpy, strncmp
 
 
 # A more efficient UUID type implementation
-# (6-7x faster than the uuid.UUID).
+# (6-7x faster than the starndard uuid.UUID):
+#
+# -= Benchmark results (less is better): =-
+#
+# std_UUID(bytes):      1.2368
+# c_UUID(bytes):      * 0.1645 (7.52x)
+# object():             0.1483
+#
+# std_UUID(str):        1.8038
+# c_UUID(str):        * 0.2313 (7.80x)
+#
+# str(std_UUID()):      1.4625
+# str(c_UUID()):      * 0.2681 (5.46x)
+# str(object()):        0.5975
+#
+# std_UUID().bytes:     0.3508
+# c_UUID().bytes:     * 0.1068 (3.28x)
+#
+# std_UUID().int:       0.0871
+# c_UUID().int:       * 0.0856
+#
+# std_UUID().hex:       0.4871
+# c_UUID().hex:       * 0.1405
+#
+# hash(std_UUID()):     0.3635
+# hash(c_UUID()):     * 0.1564 (2.32x)
+#
+# dct[std_UUID()]:      0.3319
+# dct[c_UUID()]:      * 0.1570 (2.11x)
+#
+# std_UUID() ==:        0.3478
+# c_UUID() ==:        * 0.0915 (3.80x)
 
-
-cdef const char *_hexmap = b"0123456789abcdef"
 
 cdef char _hextable[256]
 _hextable[:] = [
@@ -27,14 +56,7 @@ _hextable[:] = [
 ]
 
 
-cdef inline char i64_to_hex(uint64_t num, char *s):
-    cdef uint8_t i
-
-    for i in range(15, -1, -1):
-        s[i] = _hexmap[num & 0x0F]
-        num >>= 4
-
-    return 0
+cdef std_UUID = uuid.UUID
 
 
 cdef pg_uuid_bytes_from_str(str u, char *out):
@@ -142,25 +164,17 @@ cdef class UUID(__UUIDReplaceMe):
         return uuid.SafeUUID.unknown
 
     def __str__(self):
-        cdef:
-            uint64_t u
-            char out[36]
-
-        u = <uint64_t>hton.unpack_int64(self._data)
-        i64_to_hex(u, out)
-        u = <uint64_t>hton.unpack_int64(self._data + 8)
-        i64_to_hex(u, out + 20)
-
-        memcpy(out + 14, out + 12, 4)
-        memcpy(out + 9, out + 8, 4)
-        memcpy(out + 19, out + 20, 4)
-        out[8] = b'-'
-        out[13] = b'-'
-        out[18] = b'-'
-        out[23] = b'-'
-
+        cdef char out[36]
+        tohex.uuid_to_str(self._data, out)
         return cpythonx.PyUnicode_FromKindAndData(
             cpythonx.PyUnicode_1BYTE_KIND, <void*>out, 36)
+
+    @property
+    def hex(self):
+        cdef char out[32]
+        tohex.uuid_to_hex(self._data, out)
+        return cpythonx.PyUnicode_FromKindAndData(
+            cpythonx.PyUnicode_1BYTE_KIND, <void*>out, 32)
 
     def __repr__(self):
         return f"UUID('{self}')"
@@ -171,42 +185,42 @@ cdef class UUID(__UUIDReplaceMe):
     def __eq__(self, other):
         if type(other) is UUID:
             return strncmp(self._data, (<UUID>other)._data, 16) == 0
-        if isinstance(other, uuid.UUID):
+        if isinstance(other, std_UUID):
             return self.int == other.int
         return NotImplemented
 
     def __ne__(self, other):
         if type(other) is UUID:
             return strncmp(self._data, (<UUID>other)._data, 16) != 0
-        if isinstance(other, uuid.UUID):
+        if isinstance(other, std_UUID):
             return self.int != other.int
         return NotImplemented
 
     def __lt__(self, other):
         if type(other) is UUID:
             return strncmp(self._data, (<UUID>other)._data, 16) < 0
-        if isinstance(other, uuid.UUID):
+        if isinstance(other, std_UUID):
             return self.int < other.int
         return NotImplemented
 
     def __gt__(self, other):
         if type(other) is UUID:
             return strncmp(self._data, (<UUID>other)._data, 16) > 0
-        if isinstance(other, uuid.UUID):
+        if isinstance(other, std_UUID):
             return self.int > other.int
         return NotImplemented
 
     def __le__(self, other):
         if type(other) is UUID:
             return strncmp(self._data, (<UUID>other)._data, 16) <= 0
-        if isinstance(other, uuid.UUID):
+        if isinstance(other, std_UUID):
             return self.int <= other.int
         return NotImplemented
 
     def __ge__(self, other):
         if type(other) is UUID:
             return strncmp(self._data, (<UUID>other)._data, 16) >= 0
-        if isinstance(other, uuid.UUID):
+        if isinstance(other, std_UUID):
             return self.int >= other.int
         return NotImplemented
 
@@ -269,20 +283,6 @@ cdef class UUID(__UUIDReplaceMe):
         return self.int & 0xffffffffffff
 
     @property
-    def hex(self):
-        cdef:
-            uint64_t u
-            char out[32]
-
-        u = <uint64_t>hton.unpack_int64(self._data)
-        i64_to_hex(u, out)
-        u = <uint64_t>hton.unpack_int64(self._data + 8)
-        i64_to_hex(u, out + 16)
-
-        return cpythonx.PyUnicode_FromKindAndData(
-            cpythonx.PyUnicode_1BYTE_KIND, <void*>out, 32)
-
-    @property
     def urn(self):
         return 'urn:uuid:' + str(self)
 
@@ -329,10 +329,10 @@ cdef class UUID(__UUIDReplaceMe):
 #
 assert UUID.__bases__[0] is __UUIDReplaceMe
 assert UUID.__mro__[1] is __UUIDReplaceMe
-cpython.Py_INCREF(uuid.UUID)
-cpython.PyTuple_SET_ITEM(UUID.__bases__, 0, uuid.UUID)
-cpython.Py_INCREF(uuid.UUID)
-cpython.PyTuple_SET_ITEM(UUID.__mro__, 1, uuid.UUID)
+cpython.Py_INCREF(std_UUID)
+cpython.PyTuple_SET_ITEM(UUID.__bases__, 0, std_UUID)
+cpython.Py_INCREF(std_UUID)
+cpython.PyTuple_SET_ITEM(UUID.__mro__, 1, std_UUID)
 # </hack>
 
 

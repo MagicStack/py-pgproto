@@ -100,7 +100,6 @@ cdef pg_uuid_from_buf(const char *buf):
 
 @cython.final
 @cython.no_gc_clear
-@cython.freelist(128)
 cdef class UUID(__UUIDReplaceMe):
 
     cdef:
@@ -108,6 +107,10 @@ cdef class UUID(__UUIDReplaceMe):
         object _int
         object _hash
         object __weakref__
+
+    def __cinit__(self):
+        self._int = None
+        self._hash = None
 
     def __init__(self, inp):
         cdef:

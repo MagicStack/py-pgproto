@@ -2,7 +2,7 @@ import functools
 import uuid
 
 from libc.stdint cimport uint8_t, int8_t
-from libc.string cimport memcpy, strncmp
+from libc.string cimport memcpy, memcmp
 
 
 # A more efficient UUID type implementation
@@ -184,42 +184,42 @@ cdef class UUID(__UUIDReplaceMe):
 
     def __eq__(self, other):
         if type(other) is UUID:
-            return strncmp(self._data, (<UUID>other)._data, 16) == 0
+            return memcmp(self._data, (<UUID>other)._data, 16) == 0
         if isinstance(other, std_UUID):
             return self.int == other.int
         return NotImplemented
 
     def __ne__(self, other):
         if type(other) is UUID:
-            return strncmp(self._data, (<UUID>other)._data, 16) != 0
+            return memcmp(self._data, (<UUID>other)._data, 16) != 0
         if isinstance(other, std_UUID):
             return self.int != other.int
         return NotImplemented
 
     def __lt__(self, other):
         if type(other) is UUID:
-            return strncmp(self._data, (<UUID>other)._data, 16) < 0
+            return memcmp(self._data, (<UUID>other)._data, 16) < 0
         if isinstance(other, std_UUID):
             return self.int < other.int
         return NotImplemented
 
     def __gt__(self, other):
         if type(other) is UUID:
-            return strncmp(self._data, (<UUID>other)._data, 16) > 0
+            return memcmp(self._data, (<UUID>other)._data, 16) > 0
         if isinstance(other, std_UUID):
             return self.int > other.int
         return NotImplemented
 
     def __le__(self, other):
         if type(other) is UUID:
-            return strncmp(self._data, (<UUID>other)._data, 16) <= 0
+            return memcmp(self._data, (<UUID>other)._data, 16) <= 0
         if isinstance(other, std_UUID):
             return self.int <= other.int
         return NotImplemented
 
     def __ge__(self, other):
         if type(other) is UUID:
-            return strncmp(self._data, (<UUID>other)._data, 16) >= 0
+            return memcmp(self._data, (<UUID>other)._data, 16) >= 0
         if isinstance(other, std_UUID):
             return self.int >= other.int
         return NotImplemented

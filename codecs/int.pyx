@@ -23,6 +23,10 @@ cdef int2_encode(CodecContext settings, WriteBuffer buf, obj):
     cdef long val
 
     try:
+        if type(obj) is not int and hasattr(type(obj), '__int__'):
+            # Silence a Python warning about implicit __int__
+            # conversion.
+            obj = int(obj)
         val = cpython.PyLong_AsLong(obj)
     except OverflowError:
         overflow = 1
@@ -43,6 +47,10 @@ cdef int4_encode(CodecContext settings, WriteBuffer buf, obj):
     cdef long val = 0
 
     try:
+        if type(obj) is not int and hasattr(type(obj), '__int__'):
+            # Silence a Python warning about implicit __int__
+            # conversion.
+            obj = int(obj)
         val = cpython.PyLong_AsLong(obj)
     except OverflowError:
         overflow = 1
@@ -64,6 +72,10 @@ cdef uint4_encode(CodecContext settings, WriteBuffer buf, obj):
     cdef unsigned long val = 0
 
     try:
+        if type(obj) is not int and hasattr(type(obj), '__int__'):
+            # Silence a Python warning about implicit __int__
+            # conversion.
+            obj = int(obj)
         val = cpython.PyLong_AsUnsignedLong(obj)
     except OverflowError:
         overflow = 1
@@ -86,6 +98,10 @@ cdef int8_encode(CodecContext settings, WriteBuffer buf, obj):
     cdef long long val
 
     try:
+        if type(obj) is not int and hasattr(type(obj), '__int__'):
+            # Silence a Python warning about implicit __int__
+            # conversion.
+            obj = int(obj)
         val = cpython.PyLong_AsLongLong(obj)
     except OverflowError:
         overflow = 1

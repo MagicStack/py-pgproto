@@ -129,7 +129,11 @@ cdef numeric_encode_binary(CodecContext settings, WriteBuffer buf, obj):
 # For this reason the below code is pure overhead and is ~25% slower
 # than the simple text decoder above.  That said, we need the binary
 # decoder to support binary COPY with numeric values.
-cdef numeric_decode_binary(CodecContext settings, FRBuffer *buf):
+cdef numeric_decode_binary_ex(
+    CodecContext settings,
+    FRBuffer *buf,
+    bint trail_fract_zero,
+):
     cdef:
         uint16_t num_pgdigits = <uint16_t>hton.unpack_int16(frb_read(buf, 2))
         int16_t weight = hton.unpack_int16(frb_read(buf, 2))
@@ -140,6 +144,7 @@ cdef numeric_decode_binary(CodecContext settings, FRBuffer *buf):
         int16_t pgdigit
         object pydigits
         ssize_t num_pydigits
+        ssize_t actual_num_pydigits
         ssize_t buf_size
         int64_t exponent
         int64_t abs_exponent
@@ -183,6 +188,7 @@ cdef numeric_decode_binary(CodecContext settings, FRBuffer *buf):
         1 +                 # leading zero
         1 +                 # decimal dot
         num_pydigits +      # digits
+        1 +                 # possible trailing zero padding
         2 +                 # exponent indicator (E-,E+)
         exponent_chars +    # exponent
         1                   # null terminator char
@@ -231,6 +237,18 @@ cdef numeric_decode_binary(CodecContext settings, FRBuffer *buf):
             # trailing zeros.
             bufptr += dscale_left
 
+        if trail_fract_zero:
+            # Check if the number of rendered digits matches the exponent,
+            # and if so, add another trailing zero, so the result always
+            # appears with a decimal point.
+            actual_num_pydigits = bufptr - charbuf - 2
+            if sign == NUMERIC_NEG:
+                actual_num_pydigits -= 1
+
+            if actual_num_pydigits == abs_exponent:
+                bufptr[0] = <char>b'0'
+                bufptr += 1
+
         if exponent != 0:
             bufptr[0] = b'E'
             if exponent < 0:
@@ -251,6 +269,10 @@ cdef numeric_decode_binary(CodecContext settings, FRBuffer *buf):
     finally:
         if buf_allocated:
             cpython.PyMem_Free(charbuf)
+
+
+cdef numeric_decode_binary(CodecContext settings, FRBuffer *buf):
+    return numeric_decode_binary_ex(settings, buf, False)
 
 
 cdef inline char *_unpack_digit_stripping_lzeros(char *buf, int64_t pgdigit):

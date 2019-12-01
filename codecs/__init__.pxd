@@ -120,6 +120,8 @@ cdef numeric_encode_text(CodecContext settings, WriteBuffer buf, obj)
 cdef numeric_decode_text(CodecContext settings, FRBuffer * buf)
 cdef numeric_encode_binary(CodecContext settings, WriteBuffer buf, obj)
 cdef numeric_decode_binary(CodecContext settings, FRBuffer * buf)
+cdef numeric_decode_binary_ex(CodecContext settings, FRBuffer * buf,
+                              bint trail_fract_zero)
 
 
 # Void

@@ -634,7 +634,8 @@ cdef class ReadBuffer:
         self._finish_message()
         return mem
 
-    cdef redirect_messages(self, WriteBuffer buf, char mtype):
+    cdef redirect_messages(self, WriteBuffer buf, char mtype,
+                           int stop_at=0):
         if not self._current_message_ready:
             raise exceptions.BufferError(
                 'consume_full_messages called on a buffer without a '
@@ -669,7 +670,10 @@ cdef class ReadBuffer:
             else:
                 return
 
-            # Fast path: exhaust buf0 as efficiently as possible.
+            if stop_at and buf._length >= stop_at:
+                return
+
+           # Fast path: exhaust buf0 as efficiently as possible.
             if self._pos0 + 5 <= self._len0:
                 cbuf = cpython.PyBytes_AS_STRING(self._buf0)
                 new_pos0 = self._pos0
@@ -682,14 +686,17 @@ cdef class ReadBuffer:
                     if (cbuf + new_pos0)[0] != mtype:
                         done = 1
                         break
+                    if (stop_at and
+                            (buf._length + new_pos0 - self._pos0) > stop_at):
+                        done = 1
+                        break
                     msg_len = hton.unpack_int32(cbuf + new_pos0 + 1) + 1
                     if new_pos0 + msg_len > cbuf_len:
                         break
                     new_pos0 += msg_len
 
                 if new_pos0 != self._pos0:
-                    if PG_DEBUG:
-                        assert self._pos0 < new_pos0 <= self._len0
+                    assert self._pos0 < new_pos0 <= self._len0
 
                     pos_delta = new_pos0 - self._pos0
                     buf.write_cstr(
@@ -699,8 +706,7 @@ cdef class ReadBuffer:
                     self._pos0 = new_pos0
                     self._length -= pos_delta
 
-                    if PG_DEBUG:
-                        assert self._length >= 0
+                    assert self._length >= 0
 
                 if done:
                     # The next message is of a different type.

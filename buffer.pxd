@@ -113,6 +113,8 @@ cdef class ReadBuffer:
     cdef bytes read_bytes(self, ssize_t nbytes)
     cdef bytes read_len_prefixed_bytes(self)
     cdef str read_len_prefixed_utf8(self)
+    cdef read_uuid(self)
+    cdef inline int64_t read_int64(self) except? -1
     cdef inline int32_t read_int32(self) except? -1
     cdef inline int16_t read_int16(self) except? -1
     cdef inline read_null_str(self)

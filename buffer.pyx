@@ -420,6 +420,18 @@ cdef class ReadBuffer:
         else:
             return self.read_len_prefixed_bytes().decode('utf-8')
 
+    cdef read_uuid(self):
+        cdef:
+            bytes mem
+            const char *cbuf
+
+        self._ensure_first_buf()
+        cbuf = self._try_read_bytes(16)
+        if cbuf != NULL:
+            return pg_uuid_from_buf(cbuf)
+        else:
+            return pg_UUID(self.read_bytes(16))
+
     cdef inline char read_byte(self) except? -1:
         cdef const char *first_byte
 
@@ -434,6 +446,19 @@ cdef class ReadBuffer:
             raise exceptions.BufferError('not enough data to read one byte')
 
         return first_byte[0]
+
+    cdef inline int64_t read_int64(self) except? -1:
+        cdef:
+            bytes mem
+            const char *cbuf
+
+        self._ensure_first_buf()
+        cbuf = self._try_read_bytes(8)
+        if cbuf != NULL:
+            return hton.unpack_int64(cbuf)
+        else:
+            mem = self.read_bytes(8)
+            return hton.unpack_int64(cpython.PyBytes_AS_STRING(mem))
 
     cdef inline int32_t read_int32(self) except? -1:
         cdef:

@@ -163,6 +163,14 @@ unpack_int32(const char *buf)
     return (int32_t)apg_ntoh32(nx);
 }
 
+static inline uint32_t
+unpack_uint32(const char *buf)
+{
+    uint32_t nx;
+    memcpy((char *)&nx, buf, sizeof(uint32_t));
+    return (uint32_t)apg_ntoh32(nx);
+}
+
 
 static inline int64_t
 unpack_int64(const char *buf)

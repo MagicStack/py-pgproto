@@ -146,38 +146,50 @@ pack_int64(char *buf, int64_t x)
 }
 
 
-static inline int16_t
-unpack_int16(const char *buf)
+
+static inline uint16_t
+unpack_uint16(const char *buf)
 {
     uint16_t nx;
     memcpy((char *)&nx, buf, sizeof(uint16_t));
-    return (int16_t)apg_ntoh16(nx);
+    return apg_ntoh16(nx);
 }
 
 
-static inline int32_t
-unpack_int32(const char *buf)
+static inline int16_t
+unpack_int16(const char *buf)
 {
-    uint32_t nx;
-    memcpy((char *)&nx, buf, sizeof(uint32_t));
-    return (int32_t)apg_ntoh32(nx);
+    return (int16_t)unpack_uint16(buf);
 }
+
 
 static inline uint32_t
 unpack_uint32(const char *buf)
 {
     uint32_t nx;
     memcpy((char *)&nx, buf, sizeof(uint32_t));
-    return (uint32_t)apg_ntoh32(nx);
+    return apg_ntoh32(nx);
 }
 
+
+static inline int32_t
+unpack_int32(const char *buf)
+{
+    return (int32_t)unpack_uint32(nx);
+}
+
+static inline uint64_t
+unpack_uint64(const char *buf)
+{
+    uint64_t nx;
+    memcpy((char *)&nx, buf, sizeof(uint64_t));
+    return apg_ntoh64(nx);
+}
 
 static inline int64_t
 unpack_int64(const char *buf)
 {
-    uint64_t nx;
-    memcpy((char *)&nx, buf, sizeof(uint64_t));
-    return (int64_t)apg_ntoh64(nx);
+    return (int64_t)unpack_uint64(buf);
 }
 
 

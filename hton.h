@@ -175,7 +175,7 @@ unpack_uint32(const char *buf)
 static inline int32_t
 unpack_int32(const char *buf)
 {
-    return (int32_t)unpack_uint32(nx);
+    return (int32_t)unpack_uint32(buf);
 }
 
 static inline uint64_t

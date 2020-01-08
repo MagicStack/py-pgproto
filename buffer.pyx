@@ -151,8 +151,13 @@ cdef class WriteBuffer:
     cdef write_str(self, str string, str encoding):
         self.write_bytestring(string.encode(encoding))
 
+    cdef write_len_prefixed_buffer(self, WriteBuffer buf):
+        # Write a length-prefixed (not NULL-terminated) bytes sequence.
+        self.write_int32(<int32_t>buf.len())
+        self.write_buffer(buf)
+
     cdef write_len_prefixed_bytes(self, bytes data):
-        # Write a length-prefixed (not NULL-terminated) UTF-8 string.
+        # Write a length-prefixed (not NULL-terminated) bytes sequence.
         cdef:
             char *buf
             ssize_t size

@@ -20,7 +20,7 @@ cdef int32_t pg_epoch_datetime_ts = \
 
 pg_epoch_datetime_utc = datetime.datetime(2000, 1, 1, tzinfo=utc)
 cdef int32_t pg_epoch_datetime_utc_ts = \
-    <int32_t>cpython.PyLong_AsLong(pg_epoch_datetime_utc.timestamp())
+    <int32_t>cpython.PyLong_AsLong(int(pg_epoch_datetime_utc.timestamp()))
 
 pg_epoch_date = datetime.date(2000, 1, 1)
 cdef int32_t pg_date_offset_ord = \

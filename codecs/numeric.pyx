@@ -150,9 +150,8 @@ cdef numeric_decode_binary_ex(
         int64_t abs_exponent
         ssize_t exponent_chars
         ssize_t front_padding = 0
-        ssize_t trailing_padding = 0
         ssize_t num_fract_digits
-        ssize_t dscale_left
+        ssize_t trailing_fract_zeros_adj
         char smallbuf[_NUMERIC_DECODER_SMALLBUF_SIZE]
         char *charbuf
         char *bufptr
@@ -175,14 +174,34 @@ cdef numeric_decode_binary_ex(
         elif pgdigit0 < 1000:
             front_padding = 1
 
+    # The number of fractional decimal digits actually encoded in
+    # base-DEC_DEIGITS digits sent by Postgres.
+    num_fract_digits = (num_pgdigits - weight - 1) * DEC_DIGITS
+
+    # The trailing zero adjustment necessary to obtain exactly
+    # dscale number of fractional digits in output.  May be negative,
+    # which indicates that trailing zeros in the last input digit
+    # should be discarded.
+    trailing_fract_zeros_adj = dscale - num_fract_digits
+
     # Maximum possible number of decimal digits in base 10.
-    num_pydigits = num_pgdigits * DEC_DIGITS + dscale
+    # The actual number might be up to 3 digits smaller due to
+    # leading zeros in first input digit.
+    num_pydigits = num_pgdigits * DEC_DIGITS
+    if trailing_fract_zeros_adj > 0:
+        num_pydigits += trailing_fract_zeros_adj
+
     # Exponent.
     exponent = (weight + 1) * DEC_DIGITS - front_padding
     abs_exponent = abs(exponent)
-    # Number of characters required to render absolute exponent value.
-    exponent_chars = <ssize_t>log10(<double>abs_exponent) + 1
+    if abs_exponent != 0:
+        # Number of characters required to render absolute exponent value
+        # in decimal.
+        exponent_chars = <ssize_t>log10(<double>abs_exponent) + 1
+    else:
+        exponent_chars = 0
 
+    # Output buffer size.
     buf_size = (
         1 +                 # sign
         1 +                 # leading zero
@@ -221,21 +240,14 @@ cdef numeric_decode_binary_ex(
             bufptr = _unpack_digit(bufptr, pgdigit)
 
         if dscale:
-            if weight >= 0:
-                num_fract_digits = num_pgdigits - weight - 1
-            else:
-                num_fract_digits = num_pgdigits
-
-            # Check how much dscale is left to render (trailing zeros).
-            dscale_left = dscale - num_fract_digits * DEC_DIGITS
-            if dscale_left > 0:
-                for i in range(dscale_left):
+            if trailing_fract_zeros_adj > 0:
+                for i in range(trailing_fract_zeros_adj):
                     bufptr[i] = <char>b'0'
 
             # If display scale is _less_ than the number of rendered digits,
-            # dscale_left will be negative and this will strip the excess
-            # trailing zeros.
-            bufptr += dscale_left
+            # trailing_fract_zeros_adj will be negative and this will strip
+            # the excess trailing zeros.
+            bufptr += trailing_fract_zeros_adj
 
         if trail_fract_zero:
             # Check if the number of rendered digits matches the exponent,

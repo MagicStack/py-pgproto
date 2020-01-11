@@ -253,6 +253,17 @@ cdef class ReadBuffer:
 
         if not cpython.PyBytes_CheckExact(data):
             raise exceptions.BufferError('feed_data: bytes object expected')
+
+        # Uncomment the below code to test code paths that
+        # read single int/str/bytes sequences are split over
+        # multiple received buffers.
+        #
+        # ll = 107
+        # if len(data) > ll:
+        #     self.feed_data(data[:ll])
+        #     self.feed_data(data[ll:])
+        #     return
+
         data_bytes = <bytes>data
 
         dlen = cpython.Py_SIZE(data_bytes)

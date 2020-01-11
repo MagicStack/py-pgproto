@@ -423,7 +423,7 @@ cdef class ReadBuffer:
         if cbuf != NULL:
             return cpython.PyUnicode_DecodeUTF8(cbuf, size, NULL)
         else:
-            return self.read_len_prefixed_bytes().decode('utf-8')
+            return self.read_bytes(size).decode('utf-8')
 
     cdef read_uuid(self):
         cdef:

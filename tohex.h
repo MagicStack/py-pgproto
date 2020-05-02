@@ -27,7 +27,7 @@
     }
 
 
-void inline
+static inline void
 uuid_to_str(const char *source, char *dest)
 {
     HEX_PRELUDE
@@ -44,7 +44,8 @@ uuid_to_str(const char *source, char *dest)
     HEX_2_BYTES(source + 14, dest + 32)
 }
 
-void inline
+
+static inline void
 uuid_to_hex(const char *source, char *dest)
 {
     HEX_PRELUDE

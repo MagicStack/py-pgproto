@@ -16,9 +16,8 @@ __all__ = (
     'Box', 'Line', 'LineSegment', 'Circle',
 )
 
-_BS = typing.TypeVar('_BS', bound='BitString')
-_P = typing.TypeVar('_P', bound='Point')
-_BitOrder = typing_extensions.Literal['big', 'little']
+_BitString = typing.TypeVar('_BitString', bound='BitString')
+_BitOrderType = typing_extensions.Literal['big', 'little']
 
 
 class BitString:
@@ -64,9 +63,9 @@ class BitString:
             self._bitlength = bitlen
 
     @classmethod
-    def frombytes(cls: typing.Type[_BS],
+    def frombytes(cls: typing.Type[_BitString],
                   bytes_: typing.Optional[builtins.bytes] = None,
-                  bitlength: typing.Optional[int] = None) -> _BS:
+                  bitlength: typing.Optional[int] = None) -> _BitString:
         if bitlength is None:
             if bytes_ is None:
                 bytes_ = bytes()
@@ -112,7 +111,7 @@ class BitString:
 
         return s.strip()
 
-    def to_int(self, bitorder: _BitOrder = 'big',
+    def to_int(self, bitorder: _BitOrderType = 'big',
                *, signed: bool = False) -> int:
         """Interpret the BitString as a Python int.
         Acts similarly to int.from_bytes.
@@ -148,8 +147,9 @@ class BitString:
         return x
 
     @classmethod
-    def from_int(cls: typing.Type[_BS], x: int, length: int,
-                 bitorder: _BitOrder = 'big', *, signed: bool = False) -> _BS:
+    def from_int(cls: typing.Type[_BitString], x: int, length: int,
+                 bitorder: _BitOrderType = 'big', *, signed: bool = False) \
+            -> _BitString:
         """Represent the Python int x as a BitString.
         Acts similarly to int.to_bytes.
 

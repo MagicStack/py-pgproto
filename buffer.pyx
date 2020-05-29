@@ -9,8 +9,8 @@ from libc.string cimport memcpy
 
 import collections
 
-from . import exceptions
-
+class BufferError(Exception):
+    pass
 
 @cython.no_gc_clear
 @cython.final
@@ -31,7 +31,7 @@ cdef class WriteBuffer:
             self._size = 0
 
         if self._view_count:
-            raise exceptions.BufferError(
+            raise BufferError(
                 'Deallocating buffer with attached memoryviews')
 
     def __getbuffer__(self, Py_buffer *buffer, int flags):
@@ -47,7 +47,7 @@ cdef class WriteBuffer:
 
     cdef inline _check_readonly(self):
         if self._view_count:
-            raise exceptions.BufferError('the buffer is in read-only mode')
+            raise BufferError('the buffer is in read-only mode')
 
     cdef inline _ensure_alloced(self, ssize_t extra_length):
         cdef ssize_t new_size = extra_length + self._length
@@ -90,7 +90,7 @@ cdef class WriteBuffer:
 
     cdef inline start_message(self, char type):
         if self._length != 0:
-            raise exceptions.BufferError(
+            raise BufferError(
                 'cannot start_message for a non-empty buffer')
         self._ensure_alloced(5)
         self._message_mode = 1
@@ -103,12 +103,12 @@ cdef class WriteBuffer:
 
         self._check_readonly()
         if not self._message_mode:
-            raise exceptions.BufferError(
+            raise BufferError(
                 'end_message can only be called with start_message')
         if self._length < 5:
-            raise exceptions.BufferError('end_message: buffer is too small')
+            raise BufferError('end_message: buffer is too small')
         if mlen > _MAXINT32:
-            raise exceptions.BufferError('end_message: message is too large')
+            raise BufferError('end_message: message is too large')
 
         hton.pack_int32(&self._buf[1], <int32_t>mlen)
         return self
@@ -164,7 +164,7 @@ cdef class WriteBuffer:
 
         cpython.PyBytes_AsStringAndSize(data, &buf, &size)
         if size > _MAXINT32:
-            raise exceptions.BufferError('string is too large')
+            raise BufferError('string is too large')
         # `size` does not account for the NULL at the end.
         self.write_int32(<int32_t>size)
         self.write_cstr(buf, size)
@@ -252,7 +252,7 @@ cdef class ReadBuffer:
             bytes data_bytes
 
         if not cpython.PyBytes_CheckExact(data):
-            raise exceptions.BufferError('feed_data: bytes object expected')
+            raise BufferError('feed_data: bytes object expected')
 
         # Uncomment the below code to test code paths that
         # read single int/str/bytes sequences are split over
@@ -284,9 +284,9 @@ cdef class ReadBuffer:
     cdef inline _ensure_first_buf(self):
         if PG_DEBUG:
             if self._len0 == 0:
-                raise exceptions.BufferError('empty first buffer')
+                raise BufferError('empty first buffer')
             if self._length == 0:
-                raise exceptions.BufferError('empty buffer')
+                raise BufferError('empty buffer')
 
         if self._pos0 == self._len0:
             self._switch_to_next_buf()
@@ -306,7 +306,7 @@ cdef class ReadBuffer:
 
         if PG_DEBUG:
             if self._len0 < 1:
-                raise exceptions.BufferError(
+                raise BufferError(
                     'debug: second buffer of ReadBuffer is empty')
 
     cdef inline const char* _try_read_bytes(self, ssize_t nbytes):
@@ -394,13 +394,13 @@ cdef class ReadBuffer:
             return cpython.PyBytes_FromStringAndSize(cbuf, nbytes)
 
         if nbytes > self._length:
-            raise exceptions.BufferError(
+            raise BufferError(
                 'not enough data to read {} bytes'.format(nbytes))
 
         if self._current_message_ready:
             self._current_message_len_unread -= nbytes
             if self._current_message_len_unread < 0:
-                raise exceptions.BufferError('buffer overread')
+                raise BufferError('buffer overread')
 
         result = cpython.PyBytes_FromStringAndSize(NULL, nbytes)
         buf = cpython.PyBytes_AS_STRING(result)
@@ -410,7 +410,7 @@ cdef class ReadBuffer:
     cdef bytes read_len_prefixed_bytes(self):
         cdef int32_t size = self.read_int32()
         if size < 0:
-            raise exceptions.BufferError(
+            raise BufferError(
                 'negative length for a len-prefixed bytes value')
         if size == 0:
             return b''
@@ -423,7 +423,7 @@ cdef class ReadBuffer:
 
         size = self.read_int32()
         if size < 0:
-            raise exceptions.BufferError(
+            raise BufferError(
                 'negative length for a len-prefixed bytes value')
 
         if size == 0:
@@ -453,13 +453,13 @@ cdef class ReadBuffer:
 
         if PG_DEBUG:
             if not self._buf0:
-                raise exceptions.BufferError(
+                raise BufferError(
                     'debug: first buffer of ReadBuffer is empty')
 
         self._ensure_first_buf()
         first_byte = self._try_read_bytes(1)
         if first_byte is NULL:
-            raise exceptions.BufferError('not enough data to read one byte')
+            raise BufferError('not enough data to read one byte')
 
         return first_byte[0]
 
@@ -504,7 +504,7 @@ cdef class ReadBuffer:
 
     cdef inline read_null_str(self):
         if not self._current_message_ready:
-            raise exceptions.BufferError(
+            raise BufferError(
                 'read_null_str only works when the message guaranteed '
                 'to be in the buffer')
 
@@ -542,7 +542,7 @@ cdef class ReadBuffer:
 
                 self._current_message_len_unread -= nread
                 if self._current_message_len_unread < 0:
-                    raise exceptions.BufferError(
+                    raise BufferError(
                         'read_null_str: buffer overread')
 
                 return result
@@ -555,7 +555,7 @@ cdef class ReadBuffer:
 
                 self._current_message_len_unread -= nread
                 if self._current_message_len_unread < 0:
-                    raise exceptions.BufferError(
+                    raise BufferError(
                         'read_null_str: buffer overread')
 
                 self._ensure_first_buf()
@@ -573,7 +573,7 @@ cdef class ReadBuffer:
             self._ensure_first_buf()
             cbuf = self._try_read_bytes(1)
             if cbuf == NULL:
-                raise exceptions.BufferError(
+                raise BufferError(
                     'failed to read one byte on a non-empty buffer')
             self._current_message_type = cbuf[0]
 
@@ -611,7 +611,7 @@ cdef class ReadBuffer:
 
     cdef int32_t put_message(self) except -1:
         if not self._current_message_ready:
-            raise exceptions.BufferError(
+            raise BufferError(
                 'cannot put message: no message taken')
         self._current_message_ready = False
         return 0
@@ -634,7 +634,7 @@ cdef class ReadBuffer:
 
     cdef discard_message(self):
         if not self._current_message_ready:
-            raise exceptions.BufferError('no message to discard')
+            raise BufferError('no message to discard')
         if self._current_message_len_unread > 0:
             self._read_and_discard(self._current_message_len_unread)
             self._current_message_len_unread = 0
@@ -642,7 +642,7 @@ cdef class ReadBuffer:
 
     cdef bytes consume_message(self):
         if not self._current_message_ready:
-            raise exceptions.BufferError('no message to consume')
+            raise BufferError('no message to consume')
         if self._current_message_len_unread > 0:
             mem = self.read_bytes(self._current_message_len_unread)
         else:
@@ -653,14 +653,14 @@ cdef class ReadBuffer:
     cdef redirect_messages(self, WriteBuffer buf, char mtype,
                            int stop_at=0):
         if not self._current_message_ready:
-            raise exceptions.BufferError(
+            raise BufferError(
                 'consume_full_messages called on a buffer without a '
                 'complete first message')
         if mtype != self._current_message_type:
-            raise exceptions.BufferError(
+            raise BufferError(
                 'consume_full_messages called with a wrong mtype')
         if self._current_message_len_unread != self._current_message_len - 4:
-            raise exceptions.BufferError(
+            raise BufferError(
                 'consume_full_messages called on a partially read message')
 
         cdef:

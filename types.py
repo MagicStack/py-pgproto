@@ -8,7 +8,11 @@
 import builtins
 import sys
 import typing
-import typing_extensions
+
+if sys.version_info >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
 
 
 __all__ = (
@@ -17,7 +21,7 @@ __all__ = (
 )
 
 _BitString = typing.TypeVar('_BitString', bound='BitString')
-_BitOrderType = typing_extensions.Literal['big', 'little']
+_BitOrderType = Literal['big', 'little']
 
 
 class BitString:

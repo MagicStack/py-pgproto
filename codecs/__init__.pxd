@@ -85,6 +85,8 @@ cdef uint4_encode(CodecContext settings, WriteBuffer buf, obj)
 cdef uint4_decode(CodecContext settings, FRBuffer * buf)
 cdef int8_encode(CodecContext settings, WriteBuffer buf, obj)
 cdef int8_decode(CodecContext settings, FRBuffer * buf)
+cdef uint8_encode(CodecContext settings, WriteBuffer buf, obj)
+cdef uint8_decode(CodecContext settings, FRBuffer * buf)
 
 
 # Floats

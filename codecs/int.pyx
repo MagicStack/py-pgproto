@@ -116,3 +116,29 @@ cdef int8_encode(CodecContext settings, WriteBuffer buf, obj):
 
 cdef int8_decode(CodecContext settings, FRBuffer *buf):
     return cpython.PyLong_FromLongLong(hton.unpack_int64(frb_read(buf, 8)))
+
+
+cdef uint8_encode(CodecContext settings, WriteBuffer buf, obj):
+    cdef int overflow = 0
+    cdef unsigned long long val = 0
+
+    try:
+        if type(obj) is not int and hasattr(type(obj), '__int__'):
+            # Silence a Python warning about implicit __int__
+            # conversion.
+            obj = int(obj)
+        val = cpython.PyLong_AsUnsignedLongLong(obj)
+    except OverflowError:
+        overflow = 1
+
+    # Just in case for systems with "long long" bigger than 8 bytes
+    if overflow or (sizeof(val) > 8 and val > UINT64_MAX):
+        raise OverflowError('value out of uint64 range')
+
+    buf.write_int32(8)
+    buf.write_int64(<int64_t>val)
+
+
+cdef uint8_decode(CodecContext settings, FRBuffer *buf):
+    return cpython.PyLong_FromUnsignedLongLong(
+        <uint64_t>hton.unpack_int64(frb_read(buf, 8)))

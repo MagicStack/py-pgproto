@@ -101,6 +101,11 @@ cdef jsonb_encode(CodecContext settings, WriteBuffer buf, obj)
 cdef jsonb_decode(CodecContext settings, FRBuffer * buf)
 
 
+# JSON path
+cdef jsonpath_encode(CodecContext settings, WriteBuffer buf, obj)
+cdef jsonpath_decode(CodecContext settings, FRBuffer * buf)
+
+
 # Text
 cdef as_pg_string_and_size(
         CodecContext settings, obj, char **cstr, ssize_t *size)

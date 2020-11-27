@@ -141,6 +141,6 @@ cdef inet_encode(CodecContext settings, WriteBuffer buf, obj)
 cdef inet_decode(CodecContext settings, FRBuffer * buf)
 
 
-# txid
-cdef txid_snapshot_encode(CodecContext settings, WriteBuffer buf, obj)
-cdef txid_snapshot_decode(CodecContext settings, FRBuffer * buf)
+# pg_snapshot
+cdef pg_snapshot_encode(CodecContext settings, WriteBuffer buf, obj)
+cdef pg_snapshot_decode(CodecContext settings, FRBuffer * buf)

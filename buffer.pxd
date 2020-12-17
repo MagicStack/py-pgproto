@@ -34,6 +34,7 @@ cdef class WriteBuffer:
     cdef inline _check_readonly(self)
     cdef inline _ensure_alloced(self, ssize_t extra_length)
     cdef _reallocate(self, ssize_t new_size)
+    cdef inline reset(self)
     cdef inline start_message(self, char type)
     cdef inline end_message(self)
     cdef write_buffer(self, WriteBuffer buf)

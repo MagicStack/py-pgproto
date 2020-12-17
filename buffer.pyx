@@ -113,6 +113,10 @@ cdef class WriteBuffer:
         hton.pack_int32(&self._buf[1], <int32_t>mlen)
         return self
 
+    cdef inline reset(self):
+        self._length = 0
+        self._message_mode = 0
+
     cdef write_buffer(self, WriteBuffer buf):
         self._check_readonly()
 

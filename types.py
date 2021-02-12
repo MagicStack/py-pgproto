@@ -238,24 +238,7 @@ class BitString:
         return self._bitlength
 
 
-if typing.TYPE_CHECKING or sys.version_info >= (3, 6):
-    _PointBase = typing.Tuple[float, float]
-    _BoxBase = typing.Tuple['Point', 'Point']
-    _LineBase = typing.Tuple[float, float, float]
-    _LineSegmentBase = typing.Tuple['Point', 'Point']
-    _CircleBase = typing.Tuple['Point', float]
-else:
-    # In Python 3.5, subclassing from typing.Tuple does not make the
-    # subclass act like a tuple in certain situations (like starred
-    # expressions)
-    _PointBase = tuple
-    _BoxBase = tuple
-    _LineBase = tuple
-    _LineSegmentBase = tuple
-    _CircleBase = tuple
-
-
-class Point(_PointBase):
+class Point(typing.Tuple[float, float]):
     """Immutable representation of PostgreSQL `point` type."""
 
     __slots__ = ()
@@ -290,7 +273,7 @@ class Point(_PointBase):
         return self[1]
 
 
-class Box(_BoxBase):
+class Box(typing.Tuple[Point, Point]):
     """Immutable representation of PostgreSQL `box` type."""
 
     __slots__ = ()
@@ -317,7 +300,7 @@ class Box(_BoxBase):
         return self[1]
 
 
-class Line(_LineBase):
+class Line(typing.Tuple[float, float, float]):
     """Immutable representation of PostgreSQL `line` type."""
 
     __slots__ = ()
@@ -338,7 +321,7 @@ class Line(_LineBase):
         return self[2]
 
 
-class LineSegment(_LineSegmentBase):
+class LineSegment(typing.Tuple[Point, Point]):
     """Immutable representation of PostgreSQL `lseg` type."""
 
     __slots__ = ()
@@ -421,7 +404,7 @@ class Polygon(Path):
         super().__init__(*points, is_closed=True)
 
 
-class Circle(_CircleBase):
+class Circle(typing.Tuple[Point, float]):
     """Immutable representation of PostgreSQL `circle` type."""
 
     __slots__ = ()

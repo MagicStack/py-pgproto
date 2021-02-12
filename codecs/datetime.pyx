@@ -219,12 +219,7 @@ cdef timestamptz_encode(CodecContext settings, WriteBuffer buf, obj):
         buf.write_int64(pg_time64_negative_infinity)
         return
 
-    try:
-        utc_dt = obj.astimezone(utc)
-    except ValueError:
-        # Python 3.5 doesn't like it when we call astimezone()
-        # on naive datetime objects, so make it aware.
-        utc_dt = obj.replace(tzinfo=_local_timezone()).astimezone(utc)
+    utc_dt = obj.astimezone(utc)
 
     delta = utc_dt - pg_epoch_datetime_utc
     cdef:

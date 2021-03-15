@@ -173,6 +173,12 @@ cdef class WriteBuffer:
         self.write_int32(<int32_t>size)
         self.write_cstr(buf, size)
 
+    cdef write_frbuf(self, FRBuffer *buf):
+        cdef:
+            ssize_t buf_len = buf.len
+        if buf_len > 0:
+            self.write_cstr(frb_read_all(buf), buf_len)
+
     cdef write_cstr(self, const char *data, ssize_t len):
         self._check_readonly()
         self._ensure_alloced(len)

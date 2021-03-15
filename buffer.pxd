@@ -44,6 +44,7 @@ cdef class WriteBuffer:
     cdef write_len_prefixed_bytes(self, bytes data)
     cdef write_bytestring(self, bytes string)
     cdef write_str(self, str string, str encoding)
+    cdef write_frbuf(self, FRBuffer *buf)
     cdef write_cstr(self, const char *data, ssize_t len)
     cdef write_int16(self, int16_t i)
     cdef write_int32(self, int32_t i)

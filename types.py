@@ -10,9 +10,9 @@ import sys
 import typing
 
 if sys.version_info >= (3, 8):
-    from typing import Literal
+    from typing import Literal, SupportsIndex
 else:
-    from typing_extensions import Literal
+    from typing_extensions import Literal, SupportsIndex
 
 
 __all__ = (
@@ -245,12 +245,12 @@ class Point(typing.Tuple[float, float]):
 
     def __new__(cls,
                 x: typing.Union[typing.SupportsFloat,
-                                'builtins._SupportsIndex',
+                                SupportsIndex,
                                 typing.Text,
                                 builtins.bytes,
                                 builtins.bytearray],
                 y: typing.Union[typing.SupportsFloat,
-                                'builtins._SupportsIndex',
+                                SupportsIndex,
                                 typing.Text,
                                 builtins.bytes,
                                 builtins.bytearray]) -> 'Point':

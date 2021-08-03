@@ -10,6 +10,7 @@ from cpython cimport Py_buffer
 cdef extern from "Python.h":
     int PyUnicode_1BYTE_KIND
 
+    int PyByteArray_CheckExact(object)
     int PyByteArray_Resize(object, ssize_t) except -1
     object PyByteArray_FromStringAndSize(const char *, ssize_t)
     char* PyByteArray_AsString(object)

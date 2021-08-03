@@ -261,8 +261,15 @@ cdef class ReadBuffer:
             ssize_t dlen
             bytes data_bytes
 
-        if not cpython.PyBytes_CheckExact(data):
-            raise BufferError('feed_data: bytes object expected')
+        if not cpythonx.PyBytes_CheckExact(data):
+            if cpython.PyByteArray_CheckExact(data):
+                # ProactorEventLoop in Python 3.10+ seems to be sending
+                # bytearray objects instead of bytes.  Handle this here
+                # to avoid duplicating this check in every data_received().
+                data = bytes(data)
+            else:
+                raise BufferError(
+                    'feed_data: a bytes or bytearray object expected')
 
         # Uncomment the below code to test code paths that
         # read single int/str/bytes sequences are split over

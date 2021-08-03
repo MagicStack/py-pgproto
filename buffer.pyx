@@ -261,8 +261,8 @@ cdef class ReadBuffer:
             ssize_t dlen
             bytes data_bytes
 
-        if not cpythonx.PyBytes_CheckExact(data):
-            if cpython.PyByteArray_CheckExact(data):
+        if not cpython.PyBytes_CheckExact(data):
+            if cpythonx.PyByteArray_CheckExact(data):
                 # ProactorEventLoop in Python 3.10+ seems to be sending
                 # bytearray objects instead of bytes.  Handle this here
                 # to avoid duplicating this check in every data_received().

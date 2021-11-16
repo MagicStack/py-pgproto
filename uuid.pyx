@@ -65,7 +65,7 @@ cdef pg_uuid_bytes_from_str(str u, char *out):
         Py_ssize_t size
         unsigned char ch
         uint8_t acc, part, acc_set
-        uint8_t i, j
+        int i, j
 
     orig_buf = <char*>cpythonx.PyUnicode_AsUTF8AndSize(u, &size)
     if size > 36 or size < 32:
@@ -75,7 +75,7 @@ cdef pg_uuid_bytes_from_str(str u, char *out):
 
     acc_set = 0
     j = 0
-    for i in range(0, size):
+    for i in range(size):
         ch = <unsigned char>orig_buf[i]
         if ch == <unsigned char>b'-':
             continue

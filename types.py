@@ -208,7 +208,7 @@ class BitString:
     def __repr__(self) -> str:
         return '<BitString {}>'.format(self.as_string())
 
-    __str__ = __repr__
+    __str__: typing.Callable[['BitString'], str] = __repr__
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BitString):
@@ -352,6 +352,8 @@ class Path:
     """Immutable representation of PostgreSQL `path` type."""
 
     __slots__ = '_is_closed', 'points'
+
+    points: typing.Tuple[Point, ...]
 
     def __init__(self, *points: typing.Sequence[float],
                  is_closed: bool = False) -> None:

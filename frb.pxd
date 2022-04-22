@@ -24,8 +24,7 @@ cdef:
     inline const char* frb_read(FRBuffer *frb, ssize_t n) except NULL:
         cdef const char *result
 
-        if n > frb.len:
-            frb_check(frb, n)
+        frb_check(frb, n)
 
         result = frb.buf
         frb.buf += n

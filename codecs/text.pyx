@@ -46,3 +46,15 @@ cdef inline decode_pg_string(CodecContext settings, const char* data,
 cdef text_decode(CodecContext settings, FRBuffer *buf):
     cdef ssize_t buf_len = buf.len
     return decode_pg_string(settings, frb_read_all(buf), buf_len)
+
+
+cdef void text_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    cdef ssize_t buf_len = buf.len
+    if output.current_field_is_object():
+        if settings.is_encoding_utf8():
+            output.write_object_unsafe(cpythonunsafe.PyUnicode_DecodeUTF8(frb_read_all(buf), buf_len, NULL))
+        else:
+            bytes = cpython.PyBytes_FromStringAndSize(frb_read_all(buf), buf_len)
+            output.write_object(settings.get_text_codec().decode(bytes))
+    else:
+        output.write_string(frb_read_all(buf), buf_len)

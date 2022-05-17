@@ -134,3 +134,6 @@ cdef class ReadBuffer:
 
     @staticmethod
     cdef ReadBuffer new_message_parser(object data)
+
+
+include "./array_writer.pxd"

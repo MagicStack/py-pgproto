@@ -14,3 +14,9 @@ cdef void_decode(CodecContext settings, FRBuffer *buf):
     # Do nothing; void will be passed as NULL so this function
     # will never be called.
     pass
+
+
+cdef void void_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    # Do nothing; void will be passed as NULL so this function
+    # will never be called.
+    pass

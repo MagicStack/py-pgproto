@@ -6,7 +6,7 @@
 
 
 cdef object frb_check(FRBuffer *frb, ssize_t n):
-    if n > frb.len:
+    if n > frb.len or frb.buf is None:
         raise AssertionError(
             f'insufficient data in buffer: requested {n} '
             f'remaining {frb.len}')

@@ -32,3 +32,11 @@ cdef bytea_encode(CodecContext settings, WriteBuffer wbuf, obj):
 cdef bytea_decode(CodecContext settings, FRBuffer *buf):
     cdef ssize_t buf_len = buf.len
     return cpython.PyBytes_FromStringAndSize(frb_read_all(buf), buf_len)
+
+
+cdef void bytea_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    cdef ssize_t buf_len = buf.len
+    if output.current_field_is_object():
+        output.write_object_unsafe(cpythonunsafe.PyByteArray_FromStringAndSize(frb_read_all(buf), buf_len))
+    else:
+        output.write_bytes(frb_read_all(buf), buf_len)

@@ -18,8 +18,8 @@ cdef bool_decode(CodecContext settings, FRBuffer *buf):
     return frb_read(buf, 1)[0] is b'\x01'
 
 
-cdef void bool_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
-    output.write_bool(frb_read(buf, 1)[0] != 0)
+cdef int bool_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    return output.write_bool(frb_read(buf, 1)[0] != 0)
 
 
 cdef int2_encode(CodecContext settings, WriteBuffer buf, obj):
@@ -46,8 +46,8 @@ cdef int2_decode(CodecContext settings, FRBuffer *buf):
     return cpython.PyLong_FromLong(hton.unpack_int16(frb_read(buf, 2)))
 
 
-cdef void int2_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
-    output.write_int16(hton.unpack_int16(frb_read(buf, 2)))
+cdef int int2_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    return output.write_int16(hton.unpack_int16(frb_read(buf, 2)))
 
 
 cdef int4_encode(CodecContext settings, WriteBuffer buf, obj):
@@ -75,8 +75,8 @@ cdef int4_decode(CodecContext settings, FRBuffer *buf):
     return cpython.PyLong_FromLong(hton.unpack_int32(frb_read(buf, 4)))
 
 
-cdef void int4_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
-    output.write_int32(hton.unpack_int32(frb_read(buf, 4)))
+cdef int int4_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    return output.write_int32(hton.unpack_int32(frb_read(buf, 4)))
 
 
 cdef uint4_encode(CodecContext settings, WriteBuffer buf, obj):
@@ -105,8 +105,8 @@ cdef uint4_decode(CodecContext settings, FRBuffer *buf):
         <uint32_t>hton.unpack_int32(frb_read(buf, 4)))
 
 
-cdef void uint4_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
-    int4_decode_numpy(settings, buf, output)
+cdef int uint4_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    return int4_decode_numpy(settings, buf, output)
 
 
 cdef int8_encode(CodecContext settings, WriteBuffer buf, obj):
@@ -134,8 +134,8 @@ cdef int8_decode(CodecContext settings, FRBuffer *buf):
     return cpython.PyLong_FromLongLong(hton.unpack_int64(frb_read(buf, 8)))
 
 
-cdef void int8_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
-    output.write_int64(hton.unpack_int64(frb_read(buf, 8)))
+cdef int int8_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    return output.write_int64(hton.unpack_int64(frb_read(buf, 8)))
 
 
 cdef uint8_encode(CodecContext settings, WriteBuffer buf, obj):
@@ -164,5 +164,5 @@ cdef uint8_decode(CodecContext settings, FRBuffer *buf):
         <uint64_t>hton.unpack_int64(frb_read(buf, 8)))
 
 
-cdef void uint8_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
-    int8_decode_numpy(settings, buf, output)
+cdef int uint8_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    return int8_decode_numpy(settings, buf, output)

@@ -49,14 +49,14 @@ cdef box_decode(CodecContext settings, FRBuffer *buf):
         pgproto_types.Point(low_x, low_y))
 
 
-cdef void box_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+cdef int box_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
     cdef:
         double high_x = hton.unpack_double(frb_read(buf, 8))
         double high_y = hton.unpack_double(frb_read(buf, 8))
         double low_x = hton.unpack_double(frb_read(buf, 8))
         double low_y = hton.unpack_double(frb_read(buf, 8))
 
-    output.write_4d(high_x, high_y, low_x, low_y)
+    return output.write_4d(high_x, high_y, low_x, low_y)
 
 
 cdef line_encode(CodecContext settings, WriteBuffer wbuf, obj):
@@ -75,13 +75,13 @@ cdef line_decode(CodecContext settings, FRBuffer *buf):
     return pgproto_types.Line(A, B, C)
 
 
-cdef void line_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+cdef int line_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
     cdef:
         double A = hton.unpack_double(frb_read(buf, 8))
         double B = hton.unpack_double(frb_read(buf, 8))
         double C = hton.unpack_double(frb_read(buf, 8))
 
-    output.write_3d(A, B, C)
+    return output.write_3d(A, B, C)
 
 
 cdef lseg_encode(CodecContext settings, WriteBuffer wbuf, obj):
@@ -99,8 +99,8 @@ cdef lseg_decode(CodecContext settings, FRBuffer *buf):
     return pgproto_types.LineSegment((p1_x, p1_y), (p2_x, p2_y))
 
 
-cdef void lseg_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
-    box_decode_numpy(settings, buf, output)
+cdef int lseg_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    return box_decode_numpy(settings, buf, output)
 
 
 cdef point_encode(CodecContext settings, WriteBuffer wbuf, obj):
@@ -117,12 +117,12 @@ cdef point_decode(CodecContext settings, FRBuffer *buf):
     return pgproto_types.Point(x, y)
 
 
-cdef void point_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+cdef int point_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
     cdef:
         double x = hton.unpack_double(frb_read(buf, 8))
         double y = hton.unpack_double(frb_read(buf, 8))
 
-    output.write_2d(x, y)
+    return output.write_2d(x, y)
 
 
 cdef path_encode(CodecContext settings, WriteBuffer wbuf, obj):
@@ -195,5 +195,5 @@ cdef circle_decode(CodecContext settings, FRBuffer *buf):
     return pgproto_types.Circle((center_x, center_y), radius)
 
 
-cdef void circle_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
-    line_decode_numpy(settings, buf, output)
+cdef int circle_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    return line_decode_numpy(settings, buf, output)

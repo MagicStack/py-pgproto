@@ -48,13 +48,14 @@ cdef text_decode(CodecContext settings, FRBuffer *buf):
     return decode_pg_string(settings, frb_read_all(buf), buf_len)
 
 
-cdef void text_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+cdef int text_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
     cdef ssize_t buf_len = buf.len
     if output.current_field_is_object():
         if settings.is_encoding_utf8():
-            output.write_object_unsafe(cpythonunsafe.PyUnicode_DecodeUTF8(frb_read_all(buf), buf_len, NULL))
+            return output.write_object_unsafe(
+                cpythonunsafe.PyUnicode_DecodeUTF8(frb_read_all(buf), buf_len, NULL))
         else:
             bytes = cpython.PyBytes_FromStringAndSize(frb_read_all(buf), buf_len)
-            output.write_object(settings.get_text_codec().decode(bytes))
+            return output.write_object(settings.get_text_codec().decode(bytes))
     else:
-        output.write_string(frb_read_all(buf), buf_len)
+        return output.write_string(frb_read_all(buf), buf_len)

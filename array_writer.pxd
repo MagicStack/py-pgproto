@@ -18,26 +18,26 @@ cdef class ArrayWriter:
         int16_t _field
         char *_data
 
-    cdef void raise_dtype_error(self)
+    cdef raise_dtype_error(self)
     cdef int current_field_is_object(self)
-    cdef void write_null(self)
-    cdef void write_object(self, object obj)
-    cdef void write_object_unsafe(self, PyObject *obj)
-    cdef void write_bool(self, int b)
-    cdef void write_bytes(self, const char *data, ssize_t len)
-    cdef void write_string(self, const char *data, ssize_t len)
-    cdef void write_int16(self, int16_t i)
-    cdef void write_int32(self, int32_t i)
-    cdef void write_int64(self, int64_t i)
-    cdef void write_float(self, float f)
-    cdef void write_double(self, double d)
-    cdef void write_datetime(self, int64_t dt)
-    cdef void write_timedelta(self, int64_t td)
-    cdef void write_4d(self, double high_x, double high_y, double low_x, double low_y)
-    cdef void write_3d(self, double a, double b, double c)
-    cdef void write_2d(self, double x, double y)
-    cdef void write_tid(self, uint32_t block, uint16_t offset)
+    cdef int write_null(self) except -1
+    cdef int write_object(self, object obj) except -1
+    cdef int write_object_unsafe(self, PyObject *obj) except -1
+    cdef int write_bool(self, int b) except -1
+    cdef int write_bytes(self, const char *data, ssize_t len) except -1
+    cdef int write_string(self, const char *data, ssize_t len) except -1
+    cdef int write_int16(self, int16_t i) except -1
+    cdef int write_int32(self, int32_t i) except -1
+    cdef int write_int64(self, int64_t i) except -1
+    cdef int write_float(self, float f) except -1
+    cdef int write_double(self, double d) except -1
+    cdef int write_datetime(self, int64_t dt) except -1
+    cdef int write_timedelta(self, int64_t td) except -1
+    cdef int write_4d(self, double high_x, double high_y, double low_x, double low_y) except -1
+    cdef int write_3d(self, double a, double b, double c) except -1
+    cdef int write_2d(self, double x, double y) except -1
+    cdef int write_tid(self, uint32_t block, uint16_t offset) except -1
 
-    cdef object consolidate(self)
+    cdef consolidate(self)
     cdef void _step(self)
     cdef void _recharge(self)

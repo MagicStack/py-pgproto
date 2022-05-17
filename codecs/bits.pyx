@@ -47,13 +47,12 @@ cdef bits_decode(CodecContext settings, FRBuffer *buf):
     return pgproto_types.BitString.frombytes(bytes_, bitlen)
 
 
-cdef void bits_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+cdef int bits_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
     if output.current_field_is_object():
-        output.write_object(bits_decode(settings, buf))
-        return
+        return output.write_object(bits_decode(settings, buf))
 
     cdef:
         int32_t bitlen = hton.unpack_int32(frb_read(buf, 4))
         ssize_t buf_len = buf.len
 
-    output.write_bytes(frb_read_all(buf), buf_len)
+    return output.write_bytes(frb_read_all(buf), buf_len)

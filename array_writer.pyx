@@ -14,6 +14,10 @@ from numpy cimport PyArray_DATA, dtype as np_dtype
 @cython.freelist(_BUFFER_FREELIST_SIZE)
 cdef class ArrayWriter:
     def __cinit__(self, np_dtype dtype not None):
+        cdef:
+            np_dtype child_dtype
+            int offset, pos = 0
+
         if not dtype.fields:
             raise ValueError("dtype must be a struct")
         self.dtype = dtype
@@ -23,7 +27,6 @@ cdef class ArrayWriter:
         self._dtype_kind = np.empty(len(dtype), dtype=np.byte)
         self._dtype_size = np.empty(len(dtype), dtype=np.int32)
         self._dtype_offset = np.empty(len(dtype) + 1, dtype=np.int32)
-        cdef int pos = 0
         for i, name in enumerate(dtype.names):
             child_dtype, offset = dtype.fields[name]
             self._dtype_kind[i] = child_dtype.kind
@@ -51,7 +54,7 @@ cdef class ArrayWriter:
         self._data = <char *> PyMem_Malloc(_ARRAY_CHUNK_SIZE * self.dtype.itemsize)
         self._chunks.append(<intptr_t> self._data)
 
-    cdef object consolidate(self):
+    cdef consolidate(self):
         arr = np.empty((len(self._chunks) - 1) * _ARRAY_CHUNK_SIZE + self._item, dtype=self.dtype)
         cdef:
             char *body = <char*> PyArray_DATA(arr)
@@ -81,13 +84,13 @@ cdef class ArrayWriter:
                     arr[name] = arr[name].view(dtype_timedelta64_us).astype(self.dtype[i])
         return arr
 
-    cdef void raise_dtype_error(self):
+    cdef raise_dtype_error(self):
         raise DTypeError(self._field)
 
     cdef int current_field_is_object(self):
         return self._dtype_kind[self._field] == b"O"
 
-    cdef void write_null(self):
+    cdef int write_null(self) except -1:
         cdef:
             int i
             char dtype
@@ -126,30 +129,33 @@ cdef class ArrayWriter:
             memset(self._data, 0xFF, size)
         self._step()
 
-    cdef void write_object(self, object obj):
-        cdef PyObject *ptr = <PyObject *>obj;
-        self.write_object_unsafe(ptr)
+    cdef int write_object(self, object obj) except -1:
+        cdef:
+            PyObject *ptr = <PyObject *>obj
+            int ret
+        ret = self.write_object_unsafe(ptr)
         cpythonunsafe.Py_INCREF(ptr)
+        return ret
 
-    cdef void write_object_unsafe(self, PyObject *obj):
+    cdef int write_object_unsafe(self, PyObject *obj) except -1:
         if not self.current_field_is_object():
             self.raise_dtype_error()
         (<PyObject **> self._data)[0] = obj
         self._step()
 
-    cdef void write_bool(self, int b):
+    cdef int write_bool(self, int b) except -1:
         if self._dtype_kind[self._field] != b"b":
             self.raise_dtype_error()
         self._data[0] = b != 0
         self._step()
 
-    cdef void write_bytes(self, const char *data, ssize_t len):
+    cdef int write_bytes(self, const char *data, ssize_t len) except -1:
         if self._dtype_size[self._field] < len or self._dtype_kind[self._field] != b"S":
             self.raise_dtype_error()
         memcpy(self._data, data, len)
         self._step()
 
-    cdef void write_string(self, const char *data, ssize_t len):
+    cdef int write_string(self, const char *data, ssize_t len) except -1:
         cdef char kind = self._dtype_kind[self._field]
         if kind != b"S" and kind != b"U":
             self.raise_dtype_error()
@@ -162,52 +168,52 @@ cdef class ArrayWriter:
         memcpy(self._data, data, len)
         self._step()
 
-    cdef void write_int16(self, int16_t i):
+    cdef int write_int16(self, int16_t i) except -1:
         cdef char kind = self._dtype_kind[self._field]
         if (kind != b"i" and kind != b"u") or self._dtype_size[self._field] != 2:
             self.raise_dtype_error()
         (<int16_t *> self._data)[0] = i
         self._step()
 
-    cdef void write_int32(self, int32_t i):
+    cdef int write_int32(self, int32_t i) except -1:
         cdef char kind = self._dtype_kind[self._field]
         if (kind != b"i" and kind != b"u") or self._dtype_size[self._field] != 4:
             self.raise_dtype_error()
         (<int32_t *> self._data)[0] = i
         self._step()
 
-    cdef void write_int64(self, int64_t i):
+    cdef int write_int64(self, int64_t i) except -1:
         cdef char kind = self._dtype_kind[self._field]
         if (kind != b"i" and kind != b"u") or self._dtype_size[self._field] != 8:
             self.raise_dtype_error()
         (<int64_t *> self._data)[0] = i
         self._step()
 
-    cdef void write_float(self, float f):
+    cdef int write_float(self, float f) except -1:
         if self._dtype_kind[self._field] != b"f" or self._dtype_size[self._field] != 4:
             self.raise_dtype_error()
         (<float *> self._data)[0] = f
         self._step()
 
-    cdef void write_double(self, double d):
+    cdef int write_double(self, double d) except -1:
         if self._dtype_kind[self._field] != b"f" or self._dtype_size[self._field] != 8:
             self.raise_dtype_error()
         (<double *> self._data)[0] = d
         self._step()
 
-    cdef void write_datetime(self, int64_t dt):
+    cdef int write_datetime(self, int64_t dt) except -1:
         if self._dtype_kind[self._field] != b"M":
             self.raise_dtype_error()
         (<int64_t *> self._data)[0] = dt
         self._step()
 
-    cdef void write_timedelta(self, int64_t td):
+    cdef int write_timedelta(self, int64_t td) except -1:
         if self._dtype_kind[self._field] != b"m":
             self.raise_dtype_error()
         (<int64_t *> self._data)[0] = td
         self._step()
 
-    cdef void write_4d(self, double high_x, double high_y, double low_x, double low_y):
+    cdef int write_4d(self, double high_x, double high_y, double low_x, double low_y) except -1:
         if self._dtype_kind[self._field] != b"V" or self._dtype_size[self._field] != 8 * 4:
             self.raise_dtype_error()
         (<double *> self._data)[0] = high_x
@@ -216,7 +222,7 @@ cdef class ArrayWriter:
         (<double *> self._data)[3] = low_y
         self._step()
 
-    cdef void write_3d(self, double a, double b, double c):
+    cdef int write_3d(self, double a, double b, double c) except -1:
         if self._dtype_kind[self._field] != b"V" or self._dtype_size[self._field] != 8 * 3:
             self.raise_dtype_error()
         (<double *> self._data)[0] = a
@@ -224,14 +230,14 @@ cdef class ArrayWriter:
         (<double *> self._data)[2] = c
         self._step()
 
-    cdef void write_2d(self, double x, double y):
+    cdef int write_2d(self, double x, double y) except -1:
         if self._dtype_kind[self._field] != b"V" or self._dtype_size[self._field] != 8 * 2:
             self.raise_dtype_error()
         (<double *> self._data)[0] = x
         (<double *> self._data)[1] = y
         self._step()
 
-    cdef void write_tid(self, uint32_t block, uint16_t offset):
+    cdef int write_tid(self, uint32_t block, uint16_t offset) except -1:
         if self._dtype_kind[self._field] != b"V" or self._dtype_size[self._field] != (4 + 2):
             self.raise_dtype_error()
         (<uint32_t *> self._data)[0] = block

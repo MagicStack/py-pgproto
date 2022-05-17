@@ -5,7 +5,7 @@ from libc.string cimport memcpy, memset
 from math import nan
 
 import numpy as np
-from numpy cimport PyArray_DATA
+from numpy cimport PyArray_DATA, dtype as np_dtype
 
 @cython.no_gc
 @cython.final
@@ -13,9 +13,9 @@ from numpy cimport PyArray_DATA
 @cython.nonecheck(False)
 @cython.freelist(_BUFFER_FREELIST_SIZE)
 cdef class ArrayWriter:
-    def __cinit__(self, object dtype):
-        if not isinstance(dtype, np.dtype) or dtype.kind != "V":
-            raise ValueError("dtype must be a struct (V)")
+    def __cinit__(self, np_dtype dtype not None):
+        if not dtype.fields:
+            raise ValueError("dtype must be a struct")
         self.dtype = dtype
         self.null_indexes = []
         self._chunks = []
@@ -26,7 +26,7 @@ cdef class ArrayWriter:
         cdef int pos = 0
         for i, name in enumerate(dtype.names):
             child_dtype, offset = dtype.fields[name]
-            self._dtype_kind[i] = cpythonx.PyUnicode_AsUTF8AndSize(child_dtype.kind, NULL)[0]
+            self._dtype_kind[i] = child_dtype.kind
             self._dtype_size[i] = child_dtype.itemsize
             self._dtype_offset[i] = offset - pos
             pos = offset + child_dtype.itemsize
@@ -67,8 +67,8 @@ cdef class ArrayWriter:
         self._chunks.clear()
 
         # adjust datetime64 and timedelta64 units
-        dtype_datetime64_us = np.dtype("datetime64[us]")
-        dtype_timedelta64_us = np.dtype("timedelta64[us]")
+        dtype_datetime64_us = np_dtype("datetime64[us]")
+        dtype_timedelta64_us = np_dtype("timedelta64[us]")
         for i in range(len(self.dtype)):
             kind = self._dtype_kind[i]
             if kind == b"M":

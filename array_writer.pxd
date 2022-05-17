@@ -1,4 +1,6 @@
 from cpython cimport PyObject
+from numpy cimport dtype as np_dtype
+
 
 cdef class DTypeError(Exception):
     pass
@@ -6,7 +8,7 @@ cdef class DTypeError(Exception):
 
 cdef class ArrayWriter:
     cdef:
-        object dtype
+        np_dtype dtype
         list null_indexes
         list _chunks
         char[:] _dtype_kind

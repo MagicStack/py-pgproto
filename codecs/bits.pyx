@@ -45,3 +45,15 @@ cdef bits_decode(CodecContext settings, FRBuffer *buf):
 
     bytes_ = cpython.PyBytes_FromStringAndSize(frb_read_all(buf), buf_len)
     return pgproto_types.BitString.frombytes(bytes_, bitlen)
+
+
+cdef void bits_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    if output.current_field_is_object():
+        output.write_object(bits_decode(settings, buf))
+        return
+
+    cdef:
+        int32_t bitlen = hton.unpack_int32(frb_read(buf, 4))
+        ssize_t buf_len = buf.len
+
+    output.write_bytes(frb_read_all(buf), buf_len)

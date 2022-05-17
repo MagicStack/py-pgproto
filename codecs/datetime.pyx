@@ -58,6 +58,9 @@ negative_infinity_date = datetime.date(datetime.MINYEAR, 1, 1)
 cdef int32_t negative_infinity_date_ord = <int32_t>cpython.PyLong_AsLong(
     negative_infinity_date.toordinal())
 
+cdef int64_t pg_date_offset_numpy = \
+    (pg_epoch_datetime - datetime.datetime(1970, 1, 1)).total_seconds() * 1000000
+
 
 cdef inline _local_timezone():
     d = datetime.datetime.now(datetime.timezone.utc).astimezone()
@@ -139,6 +142,17 @@ cdef date_decode_tuple(CodecContext settings, FRBuffer *buf):
     return (pg_ordinal,)
 
 
+cdef void date_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    cdef int64_t pg_ordinal = hton.unpack_int32(frb_read(buf, 4))
+
+    if pg_ordinal == pg_date_infinity:
+        output.write_datetime((1 << 63) - 1)
+    elif pg_ordinal == pg_date_negative_infinity:
+        output.write_datetime(-(1 << 63) + 1)
+    else:
+        output.write_datetime(pg_ordinal * 24 * 3600 * 1000000 + pg_date_offset_numpy)
+
+
 cdef timestamp_encode(CodecContext settings, WriteBuffer buf, obj):
     if not cpython.datetime.PyDateTime_Check(obj):
         if cpython.datetime.PyDate_Check(obj):
@@ -199,6 +213,17 @@ cdef timestamp_decode_tuple(CodecContext settings, FRBuffer *buf):
     return (ts,)
 
 
+cdef void timestamp_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    cdef int64_t ts = hton.unpack_int64(frb_read(buf, 8))
+
+    if ts == pg_time64_infinity:
+        output.write_datetime((1 << 63) - 1)
+    elif ts == pg_time64_negative_infinity:
+        output.write_datetime(-(1 << 63) + 1)
+    else:
+        output.write_datetime(pg_date_offset_numpy + ts)
+
+
 cdef timestamptz_encode(CodecContext settings, WriteBuffer buf, obj):
     if not cpython.datetime.PyDateTime_Check(obj):
         if cpython.datetime.PyDate_Check(obj):
@@ -248,6 +273,10 @@ cdef timestamptz_decode(CodecContext settings, FRBuffer *buf):
             timedelta(0, seconds, microseconds))
 
 
+cdef void timestamptz_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    timestamp_decode_numpy(settings, buf, output)
+
+
 cdef time_encode(CodecContext settings, WriteBuffer buf, obj):
     cdef:
         int64_t seconds = cpython.PyLong_AsLong(obj.hour) * 3600 + \
@@ -288,6 +317,17 @@ cdef time_decode(CodecContext settings, FRBuffer *buf):
         int64_t min = minutes % 60
 
     return datetime.time(hours, min, sec, microseconds)
+
+
+cdef void time_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    cdef int64_t ts = hton.unpack_int64(frb_read(buf, 8))
+
+    if ts == pg_time64_infinity:
+        output.write_timedelta((1 << 63) - 1)
+    elif ts == pg_time64_negative_infinity:
+        output.write_timedelta(-(1 << 63) + 1)
+    else:
+        output.write_timedelta(ts)
 
 
 cdef time_decode_tuple(CodecContext settings, FRBuffer *buf):
@@ -350,6 +390,20 @@ cdef timetz_decode_tuple(CodecContext settings, FRBuffer *buf):
         int32_t offset_sec = hton.unpack_int32(frb_read(buf, 4))
 
     return (microseconds, offset_sec)
+
+
+cdef void timetz_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    cdef:
+        int64_t ts = hton.unpack_int64(frb_read(buf, 8))
+        int64_t offset
+
+    if ts == pg_time64_infinity:
+        output.write_timedelta((1 << 63) - 1)
+    elif ts == pg_time64_negative_infinity:
+        output.write_timedelta(-(1 << 63) + 1)
+    else:
+        offset = hton.unpack_int32(frb_read(buf, 4))
+        output.write_timedelta(ts + offset * 1000000)
 
 
 cdef interval_encode(CodecContext settings, WriteBuffer buf, obj):
@@ -421,3 +475,17 @@ cdef interval_decode_tuple(CodecContext settings, FRBuffer *buf):
     months = hton.unpack_int32(frb_read(buf, 4))
 
     return (months, days, microseconds)
+
+
+cdef void interval_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    cdef:
+        int64_t ts = hton.unpack_int64(frb_read(buf, 8))
+        int64_t days, months
+    if ts == pg_time64_infinity:
+        output.write_timedelta((1 << 63) - 1)
+    elif ts == pg_time64_negative_infinity:
+        output.write_timedelta(-(1 << 63) + 1)
+    else:
+        days = hton.unpack_int32(frb_read(buf, 4))
+        months = hton.unpack_int32(frb_read(buf, 4))
+        output.write_timedelta(ts + (months * 30 + days) * 24 * 3600 * 1000000)

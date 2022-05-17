@@ -23,6 +23,11 @@ cdef float4_decode(CodecContext settings, FRBuffer *buf):
     return cpython.PyFloat_FromDouble(f)
 
 
+cdef void float4_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    cdef float f = hton.unpack_float(frb_read(buf, 4))
+    output.write_float(f)
+
+
 cdef float8_encode(CodecContext settings, WriteBuffer buf, obj):
     cdef double dval = cpython.PyFloat_AsDouble(obj)
     buf.write_int32(8)
@@ -32,3 +37,8 @@ cdef float8_encode(CodecContext settings, WriteBuffer buf, obj):
 cdef float8_decode(CodecContext settings, FRBuffer *buf):
     cdef double f = hton.unpack_double(frb_read(buf, 8))
     return cpython.PyFloat_FromDouble(f)
+
+
+cdef void float8_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    cdef double f = hton.unpack_double(frb_read(buf, 8))
+    output.write_double(f)

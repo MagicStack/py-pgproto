@@ -49,3 +49,14 @@ cdef tid_decode(CodecContext settings, FRBuffer *buf):
     offset = <uint16_t>hton.unpack_int16(frb_read(buf, 2))
 
     return (block, offset)
+
+
+cdef void tid_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    cdef:
+        uint32_t block
+        uint16_t offset
+
+    block = <uint32_t>hton.unpack_int32(frb_read(buf, 4))
+    offset = <uint16_t>hton.unpack_int16(frb_read(buf, 2))
+
+    output.write_tid(block, offset)

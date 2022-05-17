@@ -9,6 +9,7 @@ cimport cython
 cimport cpython
 
 from . cimport cpythonx
+from . cimport cpythonunsafe
 
 from libc.stdint cimport int8_t, uint8_t, int16_t, uint16_t, \
                          int32_t, uint32_t, int64_t, uint64_t, \
@@ -26,6 +27,7 @@ from . import types as pgproto_types
 include "./consts.pxi"
 include "./frb.pyx"
 include "./buffer.pyx"
+include "./array_writer.pyx"
 include "./uuid.pyx"
 
 include "./codecs/context.pyx"

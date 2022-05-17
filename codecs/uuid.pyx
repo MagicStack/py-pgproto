@@ -25,3 +25,10 @@ cdef uuid_decode(CodecContext settings, FRBuffer *buf):
         raise TypeError(
             f'cannot decode UUID, expected 16 bytes, got {buf.len}')
     return pg_uuid_from_buf(frb_read_all(buf))
+
+
+cdef void uuid_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output):
+    if buf.len != 16:
+        raise TypeError(
+            f'cannot decode UUID, expected 16 bytes, got {buf.len}')
+    output.write_bytes(frb_read_all(buf), 16)

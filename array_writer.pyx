@@ -93,10 +93,11 @@ cdef class ArrayWriter:
                     arr[name] = arr[name].view(dtype_timedelta64_us).astype(dtype[i])
         return arr
 
-    cdef raise_dtype_error(self):
-        raise DTypeError(self._field)
+    cdef raise_dtype_error(self, str pgtype):
+        raise DTypeError(f"dtype[{self._field}] = {self.dtype[self._field]} does not match "
+                         f"PostgreSQL {pgtype}")
 
-    cdef int current_field_is_object(self):
+    cdef int current_field_is_object(self) nogil:
         return self._dtype_kind[self._field] == b"O"
 
     cdef int write_null(self) except -1:
@@ -150,20 +151,20 @@ cdef class ArrayWriter:
 
     cdef int write_object_unsafe(self, PyObject *obj) except -1:
         if not self.current_field_is_object():
-            self.raise_dtype_error()
+            self.raise_dtype_error("object")
         (<PyObject **> self._data)[0] = obj
         self._step()
 
     cdef int write_bool(self, int b) except -1:
         if self._dtype_kind[self._field] != b"b":
-            self.raise_dtype_error()
+            self.raise_dtype_error("bool")
         self._data[0] = b != 0
         self._step()
 
     cdef int write_bytes(self, const char *data, ssize_t len) except -1:
         cdef int full_size = self._dtype_size[self._field]
         if full_size < len or self._dtype_kind[self._field] != b"S":
-            self.raise_dtype_error()
+            self.raise_dtype_error("bytea")
         memcpy(self._data, data, len)
         memset(self._data + len, 0, full_size - len)
         self._step()
@@ -175,66 +176,66 @@ cdef class ArrayWriter:
             int ucs4_size
         if kind == b"U":
             if full_size < 4 * len:
-                self.raise_dtype_error()
+                self.raise_dtype_error("text")
             ucs4_size = 4 * utf8_to_ucs4(data, <int32_t *> self._data, len)
             memset(self._data + ucs4_size, 0, full_size - ucs4_size)
         elif kind == b"S":
             if full_size < len:
-                self.raise_dtype_error()
+                self.raise_dtype_error("text")
             memcpy(self._data, data, len)
             memset(self._data + len, 0, full_size - len)
         else:
-            self.raise_dtype_error()
+            self.raise_dtype_error("text")
         self._step()
 
     cdef int write_int16(self, int16_t i) except -1:
         cdef char kind = self._dtype_kind[self._field]
         if (kind != b"i" and kind != b"u") or self._dtype_size[self._field] != 2:
-            self.raise_dtype_error()
+            self.raise_dtype_error("smallint")
         (<int16_t *> self._data)[0] = i
         self._step()
 
     cdef int write_int32(self, int32_t i) except -1:
         cdef char kind = self._dtype_kind[self._field]
         if (kind != b"i" and kind != b"u") or self._dtype_size[self._field] != 4:
-            self.raise_dtype_error()
+            self.raise_dtype_error("int")
         (<int32_t *> self._data)[0] = i
         self._step()
 
     cdef int write_int64(self, int64_t i) except -1:
         cdef char kind = self._dtype_kind[self._field]
         if (kind != b"i" and kind != b"u") or self._dtype_size[self._field] != 8:
-            self.raise_dtype_error()
+            self.raise_dtype_error("bigint")
         (<int64_t *> self._data)[0] = i
         self._step()
 
     cdef int write_float(self, float f) except -1:
         if self._dtype_kind[self._field] != b"f" or self._dtype_size[self._field] != 4:
-            self.raise_dtype_error()
+            self.raise_dtype_error("float4")
         (<float *> self._data)[0] = f
         self._step()
 
     cdef int write_double(self, double d) except -1:
         if self._dtype_kind[self._field] != b"f" or self._dtype_size[self._field] != 8:
-            self.raise_dtype_error()
+            self.raise_dtype_error("float8")
         (<double *> self._data)[0] = d
         self._step()
 
     cdef int write_datetime(self, int64_t dt) except -1:
         if self._dtype_kind[self._field] != b"M":
-            self.raise_dtype_error()
+            self.raise_dtype_error("timestamp")
         (<int64_t *> self._data)[0] = dt
         self._step()
 
     cdef int write_timedelta(self, int64_t td) except -1:
         if self._dtype_kind[self._field] != b"m":
-            self.raise_dtype_error()
+            self.raise_dtype_error("time")
         (<int64_t *> self._data)[0] = td
         self._step()
 
     cdef int write_4d(self, double high_x, double high_y, double low_x, double low_y) except -1:
         if self._dtype_kind[self._field] != b"V" or self._dtype_size[self._field] != 8 * 4:
-            self.raise_dtype_error()
+            self.raise_dtype_error("4 of float8")
         (<double *> self._data)[0] = high_x
         (<double *> self._data)[1] = high_y
         (<double *> self._data)[2] = low_x
@@ -243,7 +244,7 @@ cdef class ArrayWriter:
 
     cdef int write_3d(self, double a, double b, double c) except -1:
         if self._dtype_kind[self._field] != b"V" or self._dtype_size[self._field] != 8 * 3:
-            self.raise_dtype_error()
+            self.raise_dtype_error("3 of float8")
         (<double *> self._data)[0] = a
         (<double *> self._data)[1] = b
         (<double *> self._data)[2] = c
@@ -251,14 +252,14 @@ cdef class ArrayWriter:
 
     cdef int write_2d(self, double x, double y) except -1:
         if self._dtype_kind[self._field] != b"V" or self._dtype_size[self._field] != 8 * 2:
-            self.raise_dtype_error()
+            self.raise_dtype_error("2 of float8")
         (<double *> self._data)[0] = x
         (<double *> self._data)[1] = y
         self._step()
 
     cdef int write_tid(self, uint32_t block, uint16_t offset) except -1:
         if self._dtype_kind[self._field] != b"V" or self._dtype_size[self._field] != (4 + 2):
-            self.raise_dtype_error()
+            self.raise_dtype_error("tid")
         (<uint32_t *> self._data)[0] = block
         (<uint16_t *> self._data)[2] = offset
         self._step()

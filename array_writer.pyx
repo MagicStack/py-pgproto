@@ -1,22 +1,29 @@
 from cpython.ref cimport PyObject
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
-from libc.stdint cimport intptr_t
+import cython
+from libc.stdint cimport intptr_t, int16_t, int32_t, int64_t
 from libc.string cimport memcpy, memset
 from math import nan
 
 import numpy as np
 from numpy cimport PyArray_DATA, dtype as np_dtype
 
+
+cdef extern from "utf8_to_ucs4.h":
+    int utf8_to_ucs4(const char *, int32_t *, int) nogil
+
+
 @cython.no_gc
 @cython.final
 @cython.boundscheck(False)
 @cython.nonecheck(False)
+@cython.wraparound(False)
 @cython.freelist(_BUFFER_FREELIST_SIZE)
 cdef class ArrayWriter:
     def __cinit__(self, np_dtype dtype not None):
         cdef:
             np_dtype child_dtype
-            int offset, pos = 0
+            int offset, pos = 0, length = len(dtype)
 
         if not dtype.fields:
             raise ValueError("dtype must be a struct")
@@ -24,16 +31,16 @@ cdef class ArrayWriter:
         self.null_indexes = []
         self._chunks = []
         self._recharge()
-        self._dtype_kind = np.empty(len(dtype), dtype=np.byte)
-        self._dtype_size = np.empty(len(dtype), dtype=np.int32)
-        self._dtype_offset = np.empty(len(dtype) + 1, dtype=np.int32)
+        self._dtype_kind = np.empty(length, dtype=np.byte)
+        self._dtype_size = np.empty(length, dtype=np.int32)
+        self._dtype_offset = np.empty(length + 1, dtype=np.int32)
         for i, name in enumerate(dtype.names):
             child_dtype, offset = dtype.fields[name]
             self._dtype_kind[i] = child_dtype.kind
             self._dtype_size[i] = child_dtype.itemsize
             self._dtype_offset[i] = offset - pos
             pos = offset + child_dtype.itemsize
-        self._dtype_offset[-1] = dtype.itemsize - pos
+        self._dtype_offset[length] = dtype.itemsize - pos
 
     def __dealloc__(self):
         for ptr in self._chunks:
@@ -54,34 +61,36 @@ cdef class ArrayWriter:
         self._data = <char *> PyMem_Malloc(_ARRAY_CHUNK_SIZE * self.dtype.itemsize)
         self._chunks.append(<intptr_t> self._data)
 
+    @cython.wraparound(True)
     cdef consolidate(self):
         arr = np.empty((len(self._chunks) - 1) * _ARRAY_CHUNK_SIZE + self._item, dtype=self.dtype)
         cdef:
             char *body = <char*> PyArray_DATA(arr)
-            int64_t chunk_size = _ARRAY_CHUNK_SIZE * self.dtype.itemsize
             char kind
+            np_dtype dtype = self.dtype
+            int64_t chunk_size = _ARRAY_CHUNK_SIZE * dtype.itemsize
 
         for chunk in self._chunks[:-1]:
             memcpy(body, <void*><intptr_t>chunk, chunk_size)
             PyMem_Free(<PyObject *><intptr_t>chunk)
             body += chunk_size
-        memcpy(body, <void*><intptr_t>self._chunks[-1], self._item * self.dtype.itemsize)
+        memcpy(body, <void*><intptr_t>self._chunks[-1], self._item * dtype.itemsize)
         PyMem_Free(<PyObject *><intptr_t>self._chunks[-1])
         self._chunks.clear()
 
         # adjust datetime64 and timedelta64 units
         dtype_datetime64_us = np_dtype("datetime64[us]")
         dtype_timedelta64_us = np_dtype("timedelta64[us]")
-        for i in range(len(self.dtype)):
+        for i in range(len(dtype)):
             kind = self._dtype_kind[i]
             if kind == b"M":
-                if self.dtype[i] != dtype_datetime64_us:
-                    name = self.dtype.names[i]
-                    arr[name] = arr[name].view(dtype_datetime64_us).astype(self.dtype[i])
+                if dtype[i] != dtype_datetime64_us:
+                    name = dtype.names[i]
+                    arr[name] = arr[name].view(dtype_datetime64_us).astype(dtype[i])
             elif kind == b"m":
-                if self.dtype[i] != dtype_timedelta64_us:
-                    name = self.dtype.names[i]
-                    arr[name] = arr[name].view(dtype_timedelta64_us).astype(self.dtype[i])
+                if dtype[i] != dtype_timedelta64_us:
+                    name = dtype.names[i]
+                    arr[name] = arr[name].view(dtype_timedelta64_us).astype(dtype[i])
         return arr
 
     cdef raise_dtype_error(self):
@@ -125,8 +134,10 @@ cdef class ArrayWriter:
                 (<uint32_t *> self._data)[0] = (1 << 31)
             elif size == 8:
                 (<uint64_t *> self._data)[0] = (1 << 63)
-        elif dtype == b"S" or dtype == b"U":
+        elif dtype == b"S":
             memset(self._data, 0xFF, size)
+        elif dtype == b"U":
+            memset(self._data, 0, size)
         self._step()
 
     cdef int write_object(self, object obj) except -1:
@@ -150,22 +161,30 @@ cdef class ArrayWriter:
         self._step()
 
     cdef int write_bytes(self, const char *data, ssize_t len) except -1:
-        if self._dtype_size[self._field] < len or self._dtype_kind[self._field] != b"S":
+        cdef int full_size = self._dtype_size[self._field]
+        if full_size < len or self._dtype_kind[self._field] != b"S":
             self.raise_dtype_error()
         memcpy(self._data, data, len)
+        memset(self._data + len, 0, full_size - len)
         self._step()
 
     cdef int write_string(self, const char *data, ssize_t len) except -1:
-        cdef char kind = self._dtype_kind[self._field]
-        if kind != b"S" and kind != b"U":
-            self.raise_dtype_error()
+        cdef:
+            char kind = self._dtype_kind[self._field]
+            int full_size = self._dtype_size[self._field]
+            int ucs4_size
         if kind == b"U":
-            if self._dtype_size[self._field] < 4 * len:
+            if full_size < 4 * len:
                 self.raise_dtype_error()
+            ucs4_size = 4 * utf8_to_ucs4(data, <int32_t *> self._data, len)
+            memset(self._data + ucs4_size, 0, full_size - ucs4_size)
+        elif kind == b"S":
+            if full_size < len:
+                self.raise_dtype_error()
+            memcpy(self._data, data, len)
+            memset(self._data + len, 0, full_size - len)
         else:
-            if self._dtype_size[self._field] < len:
-                self.raise_dtype_error()
-        memcpy(self._data, data, len)
+            self.raise_dtype_error()
         self._step()
 
     cdef int write_int16(self, int16_t i) except -1:

@@ -18,7 +18,7 @@ cdef class ArrayWriter:
         int16_t _field
         char *_data
 
-    cdef raise_dtype_error(self, str pgtype)
+    cdef raise_dtype_error(self, str pgtype, int size)
     cdef int current_field_is_object(self) nogil
     cdef int write_null(self) except -1
     cdef int write_object(self, object obj) except -1

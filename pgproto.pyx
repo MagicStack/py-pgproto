@@ -25,7 +25,6 @@ from . import types as pgproto_types
 
 
 include "./consts.pxi"
-include "./frb.pyx"
 include "./buffer.pyx"
 include "./array_writer.pyx"
 include "./uuid.pyx"

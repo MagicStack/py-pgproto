@@ -24,14 +24,14 @@ cdef:
     inline const char* frb_read(FRBuffer *frb, ssize_t n) except NULL:
         cdef const char *result
 
-        frb_check(frb, n)
+        if n > frb.len:
+            frb_raise(frb, n)
 
         result = frb.buf
         frb.buf += n
         frb.len -= n
 
         return result
-
 
     inline const char* frb_read_all(FRBuffer *frb) nogil:
         cdef const char *result
@@ -46,4 +46,7 @@ cdef:
         frb.len = len
         return frb
 
-    object frb_check(FRBuffer *frb, ssize_t n)
+    inline frb_raise(FRBuffer *frb, ssize_t n):
+        raise AssertionError(
+            f'insufficient data in buffer: requested {n} '
+            f'remaining {frb.len}')

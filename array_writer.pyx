@@ -25,20 +25,20 @@ cdef class ArrayWriter:
         cdef:
             np_dtype child_dtype
             int offset, pos = 0, length = len(dtype), unit
-            libdivide_s64_t adjust_value
+            libdivide_s64_ex_t adjust_value
             char adjust_kind
 
         if not dtype.fields:
             raise ValueError("dtype must be a struct")
         self.dtype = dtype
         self.null_indexes = []
+        self._dtype_length = length
         self._chunks = []
         self._recharge()
         self._dtype_kind = <char *>malloc(length)
         self._dtype_size = <int32_t *>malloc(length * 4)
         self._dtype_offset = <int32_t *>malloc((length + 1) * 4)
-        self._time_adjust_value = <libdivide_s64_t *>malloc(length * sizeof(libdivide_s64_t))
-        self._time_adjust_kind = <char *>malloc(length)
+        self._time_adjust_value = <libdivide_s64_ex_t *>malloc(length * sizeof(libdivide_s64_ex_t))
         for i, name in enumerate(dtype.names):
             child_dtype, offset = dtype.fields[name]
             self._dtype_kind[i] = child_dtype.kind
@@ -48,33 +48,32 @@ cdef class ArrayWriter:
             if child_dtype.kind == b"M" or child_dtype.kind == b"m":
                 unit = (<PyArray_DatetimeDTypeMetaData *>child_dtype.c_metadata).meta.base
                 if unit == NPY_FR_us or unit == NPY_FR_GENERIC:
-                    adjust_value.magic = 1
-                    adjust_kind = False
+                    adjust_value.base.magic = 1
+                    adjust_value.dt_offset = 0
                 elif unit == NPY_FR_ns:
-                    adjust_value.magic = 1000
-                    adjust_kind = False
+                    adjust_value.base.magic = 1000
+                    adjust_value.dt_offset = 0
                 elif unit == NPY_FR_s:
-                    adjust_value = libdivide_s64_gen(1000000)
-                    adjust_kind = True
+                    adjust_value.base = libdivide_s64_gen(1000000)
+                    adjust_value.dt_offset = 1 - 1000000
                 elif unit == NPY_FR_ms:
-                    adjust_value = libdivide_s64_gen(1000)
-                    adjust_kind = True
+                    adjust_value.base = libdivide_s64_gen(1000)
+                    adjust_value.dt_offset = 1 - 1000
                 elif unit == NPY_FR_D:
-                    adjust_value = libdivide_s64_gen(24 * 3600 * 1000000)
-                    adjust_kind = True
+                    adjust_value.base = libdivide_s64_gen(24 * 3600 * 1000000)
+                    adjust_value.dt_offset = 1 - 24 * 3600 * 1000000
                 elif unit == NPY_FR_m:
-                    adjust_value = libdivide_s64_gen(60 * 1000000)
-                    adjust_kind = True
+                    adjust_value.base = libdivide_s64_gen(60 * 1000000)
+                    adjust_value.dt_offset = 1 - 60 * 1000000
                 elif unit == NPY_FR_h:
-                    adjust_value = libdivide_s64_gen(3600 * 1000000)
-                    adjust_kind = True
+                    adjust_value.base = libdivide_s64_gen(3600 * 1000000)
+                    adjust_value.dt_offset = 1 - 3600 * 1000000
                 elif unit == NPY_FR_W:
-                    adjust_value = libdivide_s64_gen(7 * 24 * 3600 * 1000000)
-                    adjust_kind = True
+                    adjust_value.base = libdivide_s64_gen(7 * 24 * 3600 * 1000000)
+                    adjust_value.dt_offset = 1 - 7 * 24 * 3600 * 1000000
                 else:
                     raise NotImplementedError(f"dtype[{i}] = {dtype[i]} time unit is not supported")
             self._time_adjust_value[i] = adjust_value
-            self._time_adjust_kind[i] = adjust_kind
         self._dtype_offset[length] = dtype.itemsize - pos
 
     def __dealloc__(self):
@@ -82,7 +81,6 @@ cdef class ArrayWriter:
         free(self._dtype_size)
         free(self._dtype_offset)
         free(self._time_adjust_value)
-        free(self._time_adjust_kind)
         for ptr in self._chunks:
             PyMem_Free(<PyObject *><intptr_t>ptr)
 
@@ -90,7 +88,7 @@ cdef class ArrayWriter:
         self._data += self._dtype_size[self._field]
         self._field += 1
         self._data += self._dtype_offset[self._field]
-        if self._field == len(self._dtype_kind):
+        if self._field == self._dtype_length:
             self._field = 0
             self._item += 1
             if self._item == _ARRAY_CHUNK_SIZE:
@@ -132,7 +130,7 @@ cdef class ArrayWriter:
             char dtype
             int size
 
-        self.null_indexes.append(self._item * len(self._dtype_kind) + self._field)
+        self.null_indexes.append(self._item * self._dtype_length + self._field)
         dtype = self._dtype_kind[self._field]
         size = self._dtype_size[self._field]
         if dtype == b"O":
@@ -248,22 +246,28 @@ cdef class ArrayWriter:
         self._step()
 
     cdef int write_datetime(self, int64_t dt) except -1:
+        cdef:
+            libdivide_s64_ex_t *ptr = &self._time_adjust_value[self._field]
+            int64_t offset = ptr.dt_offset
         if self._dtype_kind[self._field] != b"M":
             self.raise_dtype_error("timestamp", 8)
-        if self._time_adjust_kind[self._field]:
-            dt = libdivide_s64_do(dt, &self._time_adjust_value[self._field])
+        if offset != 0:
+            if dt < 0:
+                dt += offset
+            dt = libdivide_s64_do(dt, <libdivide_s64_t *>ptr)
         else:
-            dt *= self._time_adjust_value[self._field].magic
+            dt *= ptr.base.magic
         (<int64_t *> self._data)[0] = dt
         self._step()
 
     cdef int write_timedelta(self, int64_t td) except -1:
+        cdef libdivide_s64_ex_t *ptr = &self._time_adjust_value[self._field]
         if self._dtype_kind[self._field] != b"m":
             self.raise_dtype_error("time", 8)
-        if self._time_adjust_kind[self._field]:
-            td = libdivide_s64_do(td, &self._time_adjust_value[self._field])
+        if ptr.dt_offset != 0:
+            td = libdivide_s64_do(td, <libdivide_s64_t *>ptr)
         else:
-            td *= self._time_adjust_value[self._field].magic
+            td *= ptr.base.magic
         (<int64_t *> self._data)[0] = td
         self._step()
 

@@ -1,5 +1,55 @@
 from cpython cimport PyObject
-from numpy cimport dtype as np_dtype
+from libc.stdint cimport uint8_t, int64_t
+
+
+cdef enum NPY_DATETIMEUNIT:
+    # Force signed enum type, must be -1 for code compatibility
+    NPY_FR_ERROR = -1,  # error or undetermined
+
+    # Start of valid units
+    NPY_FR_Y = 0,  # Years
+    NPY_FR_M = 1,  # Months
+    NPY_FR_W = 2,  # Weeks
+    # Gap where 1.6 NPY_FR_B (value 3) was
+    NPY_FR_D = 4,  # Days
+    NPY_FR_h = 5,  # hours
+    NPY_FR_m = 6,  # minutes
+    NPY_FR_s = 7,  # seconds
+    NPY_FR_ms = 8,  # milliseconds
+    NPY_FR_us = 9,  # microseconds
+    NPY_FR_ns = 10,  # nanoseconds
+    NPY_FR_ps = 11,  # picoseconds
+    NPY_FR_fs = 12,  # femtoseconds
+    NPY_FR_as = 13,  # attoseconds
+    NPY_FR_GENERIC = 14  # unbound units, can convert to anything
+
+
+cdef extern from "numpy/arrayobject.h":
+    ctypedef struct PyArray_DatetimeMetaData:
+        NPY_DATETIMEUNIT base
+
+    ctypedef struct PyArray_DatetimeDTypeMetaData:
+        PyArray_DatetimeMetaData meta
+
+    ctypedef class numpy.dtype[object PyArray_Descr, check_size ignore]:
+        cdef:
+            char kind
+            int itemsize "elsize"
+            dict fields
+            tuple names
+            void *c_metadata
+
+
+ctypedef dtype np_dtype
+
+
+cdef extern from "numpy/libdivide/libdivide.h":
+    struct libdivide_s64_t:
+        int64_t magic
+        uint8_t more
+
+    inline libdivide_s64_t libdivide_s64_gen(int64_t d) nogil
+    inline int64_t libdivide_s64_do(int64_t numer, const libdivide_s64_t *denom) nogil
 
 
 cdef class DTypeError(Exception):
@@ -11,9 +61,11 @@ cdef class ArrayWriter:
         np_dtype dtype
         list null_indexes
         list _chunks
-        char[:] _dtype_kind
-        int32_t[:] _dtype_size
-        int32_t[:] _dtype_offset
+        char *_dtype_kind
+        int32_t *_dtype_size
+        int32_t *_dtype_offset
+        libdivide_s64_t *_time_adjust_value
+        char *_time_adjust_kind
         int64_t _item
         int16_t _field
         char *_data

@@ -2,15 +2,16 @@ from cpython.ref cimport PyObject
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 import cython
 from libc.stdint cimport intptr_t, int16_t, int32_t, int64_t
+from libc.stdlib cimport malloc, free
 from libc.string cimport memcpy, memset
 from math import nan
 
 import numpy as np
-from numpy cimport PyArray_DATA, dtype as np_dtype
+from numpy cimport PyArray_DATA
 
 
 cdef extern from "utf8_to_ucs4.h":
-    int utf8_to_ucs4(const char *, int32_t *, int) nogil
+    inline int utf8_to_ucs4(const char *, int32_t *, int) nogil
 
 
 @cython.no_gc
@@ -23,7 +24,9 @@ cdef class ArrayWriter:
     def __cinit__(self, np_dtype dtype not None):
         cdef:
             np_dtype child_dtype
-            int offset, pos = 0, length = len(dtype)
+            int offset, pos = 0, length = len(dtype), unit
+            libdivide_s64_t adjust_value
+            char adjust_kind
 
         if not dtype.fields:
             raise ValueError("dtype must be a struct")
@@ -31,18 +34,55 @@ cdef class ArrayWriter:
         self.null_indexes = []
         self._chunks = []
         self._recharge()
-        self._dtype_kind = np.empty(length, dtype=np.byte)
-        self._dtype_size = np.empty(length, dtype=np.int32)
-        self._dtype_offset = np.empty(length + 1, dtype=np.int32)
+        self._dtype_kind = <char *>malloc(length)
+        self._dtype_size = <int32_t *>malloc(length * 4)
+        self._dtype_offset = <int32_t *>malloc((length + 1) * 4)
+        self._time_adjust_value = <libdivide_s64_t *>malloc(length * sizeof(libdivide_s64_t))
+        self._time_adjust_kind = <char *>malloc(length)
         for i, name in enumerate(dtype.names):
             child_dtype, offset = dtype.fields[name]
             self._dtype_kind[i] = child_dtype.kind
             self._dtype_size[i] = child_dtype.itemsize
             self._dtype_offset[i] = offset - pos
             pos = offset + child_dtype.itemsize
+            if child_dtype.kind == b"M" or child_dtype.kind == b"m":
+                unit = (<PyArray_DatetimeDTypeMetaData *>child_dtype.c_metadata).meta.base
+                if unit == NPY_FR_us or unit == NPY_FR_GENERIC:
+                    adjust_value.magic = 1
+                    adjust_kind = False
+                elif unit == NPY_FR_ns:
+                    adjust_value.magic = 1000
+                    adjust_kind = False
+                elif unit == NPY_FR_s:
+                    adjust_value = libdivide_s64_gen(1000000)
+                    adjust_kind = True
+                elif unit == NPY_FR_ms:
+                    adjust_value = libdivide_s64_gen(1000)
+                    adjust_kind = True
+                elif unit == NPY_FR_D:
+                    adjust_value = libdivide_s64_gen(24 * 3600 * 1000000)
+                    adjust_kind = True
+                elif unit == NPY_FR_m:
+                    adjust_value = libdivide_s64_gen(60 * 1000000)
+                    adjust_kind = True
+                elif unit == NPY_FR_h:
+                    adjust_value = libdivide_s64_gen(3600 * 1000000)
+                    adjust_kind = True
+                elif unit == NPY_FR_W:
+                    adjust_value = libdivide_s64_gen(7 * 24 * 3600 * 1000000)
+                    adjust_kind = True
+                else:
+                    raise NotImplementedError(f"dtype[{i}] = {dtype[i]} time unit is not supported")
+            self._time_adjust_value[i] = adjust_value
+            self._time_adjust_kind[i] = adjust_kind
         self._dtype_offset[length] = dtype.itemsize - pos
 
     def __dealloc__(self):
+        free(self._dtype_kind)
+        free(self._dtype_size)
+        free(self._dtype_offset)
+        free(self._time_adjust_value)
+        free(self._time_adjust_kind)
         for ptr in self._chunks:
             PyMem_Free(<PyObject *><intptr_t>ptr)
 
@@ -77,20 +117,6 @@ cdef class ArrayWriter:
         memcpy(body, <void*><intptr_t>self._chunks[-1], self._item * dtype.itemsize)
         PyMem_Free(<PyObject *><intptr_t>self._chunks[-1])
         self._chunks.clear()
-
-        # adjust datetime64 and timedelta64 units
-        dtype_datetime64_us = np_dtype("datetime64[us]")
-        dtype_timedelta64_us = np_dtype("timedelta64[us]")
-        for i in range(len(dtype)):
-            kind = self._dtype_kind[i]
-            if kind == b"M":
-                if dtype[i] != dtype_datetime64_us:
-                    name = dtype.names[i]
-                    arr[name] = arr[name].view(dtype_datetime64_us).astype(dtype[i])
-            elif kind == b"m":
-                if dtype[i] != dtype_timedelta64_us:
-                    name = dtype.names[i]
-                    arr[name] = arr[name].view(dtype_timedelta64_us).astype(dtype[i])
         return arr
 
     cdef raise_dtype_error(self, str pgtype, int size):
@@ -224,12 +250,20 @@ cdef class ArrayWriter:
     cdef int write_datetime(self, int64_t dt) except -1:
         if self._dtype_kind[self._field] != b"M":
             self.raise_dtype_error("timestamp", 8)
+        if self._time_adjust_kind[self._field]:
+            dt = libdivide_s64_do(dt, &self._time_adjust_value[self._field])
+        else:
+            dt *= self._time_adjust_value[self._field].magic
         (<int64_t *> self._data)[0] = dt
         self._step()
 
     cdef int write_timedelta(self, int64_t td) except -1:
         if self._dtype_kind[self._field] != b"m":
             self.raise_dtype_error("time", 8)
+        if self._time_adjust_kind[self._field]:
+            td = libdivide_s64_do(td, &self._time_adjust_value[self._field])
+        else:
+            td *= self._time_adjust_value[self._field].magic
         (<int64_t *> self._data)[0] = td
         self._step()
 

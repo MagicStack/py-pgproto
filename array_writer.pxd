@@ -56,16 +56,21 @@ cdef class DTypeError(Exception):
     pass
 
 
+cdef struct libdivide_s64_ex_t:
+    libdivide_s64_t base
+    int64_t dt_offset
+
+
 cdef class ArrayWriter:
     cdef:
         np_dtype dtype
         list null_indexes
         list _chunks
+        int _dtype_length
         char *_dtype_kind
         int32_t *_dtype_size
         int32_t *_dtype_offset
-        libdivide_s64_t *_time_adjust_value
-        char *_time_adjust_kind
+        libdivide_s64_ex_t *_time_adjust_value
         int64_t _item
         int16_t _field
         char *_data

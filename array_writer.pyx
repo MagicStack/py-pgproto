@@ -1,7 +1,6 @@
 from cpython.ref cimport PyObject
-from cpython.mem cimport PyMem_Malloc, PyMem_Free
 import cython
-from libc.stdint cimport intptr_t, int16_t, int32_t, int64_t
+from libc.stdint cimport intptr_t, int16_t, int32_t, uint32_t, int64_t
 from libc.stdlib cimport malloc, free
 from libc.string cimport memcpy, memset
 from math import nan
@@ -11,7 +10,12 @@ from numpy cimport PyArray_DATA
 
 
 cdef extern from "utf8_to_ucs4.h":
-    inline int utf8_to_ucs4(const char *, int32_t *, int) nogil
+    int utf8_to_ucs4(const char *, int32_t *, int) nogil
+
+
+cdef extern from "memalign.h":
+    void *memalign(size_t alignment, size_t size) nogil
+    void aligned_free(void *) nogil
 
 
 @cython.no_gc
@@ -27,23 +31,35 @@ cdef class ArrayWriter:
             int offset, pos = 0, length = len(dtype), unit
             libdivide_s64_ex_t adjust_value
             char adjust_kind
+            object metadata
 
         if not dtype.fields:
             raise ValueError("dtype must be a struct")
         self.dtype = dtype
+        metadata = dtype.metadata
+        if cpythonx.PyMapping_Check(metadata) and cpythonx.PyMapping_HasKey(metadata, "blocks"):
+            self.major = kColumnMajor
+        else:
+            self.major = kRowMajor
         self.null_indexes = []
         self._dtype_length = length
         self._chunks = []
         self._recharge()
         self._dtype_kind = <char *>malloc(length)
-        self._dtype_size = <int32_t *>malloc(length * 4)
-        self._dtype_offset = <int32_t *>malloc((length + 1) * 4)
+        self._dtype_size = <uint32_t *>malloc(length * 4)
+        self._dtype_offset = <uint32_t *>malloc((length + (self.major == kRowMajor)) * 4)
         self._time_adjust_value = <libdivide_s64_ex_t *>malloc(length * sizeof(libdivide_s64_ex_t))
         for i, name in enumerate(dtype.names):
             child_dtype, offset = dtype.fields[name]
             self._dtype_kind[i] = child_dtype.kind
             self._dtype_size[i] = child_dtype.itemsize
-            self._dtype_offset[i] = offset - pos
+            if self.major == kRowMajor:
+                self._dtype_offset[i] = offset - pos
+            elif i == 0:
+                self._dtype_offset[i] = 0
+            else:
+                self._dtype_offset[i] = \
+                    self._dtype_offset[i - 1] + _ARRAY_CHUNK_SIZE * self._dtype_size[i - 1]
             pos = offset + child_dtype.itemsize
             if child_dtype.kind == b"M" or child_dtype.kind == b"m":
                 unit = (<PyArray_DatetimeDTypeMetaData *>child_dtype.c_metadata).meta.base
@@ -74,7 +90,8 @@ cdef class ArrayWriter:
                 else:
                     raise NotImplementedError(f"dtype[{i}] = {dtype[i]} time unit is not supported")
             self._time_adjust_value[i] = adjust_value
-        self._dtype_offset[length] = dtype.itemsize - pos
+        if self.major == kRowMajor:
+            self._dtype_offset[length] = dtype.itemsize - pos
 
     def __dealloc__(self):
         free(self._dtype_kind)
@@ -82,39 +99,92 @@ cdef class ArrayWriter:
         free(self._dtype_offset)
         free(self._time_adjust_value)
         for ptr in self._chunks:
-            PyMem_Free(<PyObject *><intptr_t>ptr)
+            free(<PyObject *><intptr_t>ptr)
 
     cdef void _step(self):
-        self._data += self._dtype_size[self._field]
+        if self.major == kRowMajor:
+            self._data += self._dtype_size[self._field]
         self._field += 1
-        self._data += self._dtype_offset[self._field]
+        if self._field < self._dtype_length:
+            if self.major == kRowMajor:
+                self._data += self._dtype_offset[self._field]
+            else:
+                self._data = (
+                    self._chunk
+                    + self._dtype_offset[self._field]
+                    + self._item * self._dtype_size[self._field]
+                )
         if self._field == self._dtype_length:
             self._field = 0
             self._item += 1
+            if self.major == kColumnMajor:
+                self._data = self._chunk + self._item * self._dtype_size[self._field]
             if self._item == _ARRAY_CHUNK_SIZE:
                 self._recharge()
 
     cdef void _recharge(self):
         self._item = 0
-        self._data = <char *> PyMem_Malloc(_ARRAY_CHUNK_SIZE * self.dtype.itemsize)
-        self._chunks.append(<intptr_t> self._data)
+        self._data = self._chunk = <char *> memalign(4096, _ARRAY_CHUNK_SIZE * self.dtype.itemsize)
+        self._chunks.append(<intptr_t> self._chunk)
 
-    @cython.wraparound(True)
     cdef consolidate(self):
-        arr = np.empty((len(self._chunks) - 1) * _ARRAY_CHUNK_SIZE + self._item, dtype=self.dtype)
+        if self.major == kRowMajor:
+            result = self._consolidate_row_major()
+        else:
+            result = self._consolidate_column_major()
+        for chunk in self._chunks:
+            aligned_free(<PyObject *><intptr_t>chunk)
+        self._chunks.clear()
+        return result
+
+    cdef _consolidate_row_major(self):
         cdef:
-            char *body = <char*> PyArray_DATA(arr)
-            char kind
+            char *body
+            void *chunk
             np_dtype dtype = self.dtype
+            int chunks_count = len(self._chunks), i
             int64_t chunk_size = _ARRAY_CHUNK_SIZE * dtype.itemsize
 
-        for chunk in self._chunks[:-1]:
-            memcpy(body, <void*><intptr_t>chunk, chunk_size)
-            PyMem_Free(<PyObject *><intptr_t>chunk)
+        arr = np.empty((chunks_count - 1) * _ARRAY_CHUNK_SIZE + self._item, dtype=self.dtype)
+        body = <char*> PyArray_DATA(arr)
+        for i in range(chunks_count):
+            chunk = cpythonunsafe.PyLong_AsVoidPtr(
+                cpythonunsafe.PyList_GET_ITEM(<PyObject*>self._chunks, i))
+            if i == chunks_count - 1:
+                chunk_size = self._item * dtype.itemsize
+            memcpy(body, chunk, chunk_size)
             body += chunk_size
-        memcpy(body, <void*><intptr_t>self._chunks[-1], self._item * dtype.itemsize)
-        PyMem_Free(<PyObject *><intptr_t>self._chunks[-1])
-        self._chunks.clear()
+        return arr
+
+    cdef _consolidate_column_major(self):
+        cdef:
+            char *body
+            char *chunk
+            np_dtype dtype = self.dtype, child_type
+            int last_chunk_index = len(self._chunks) - 1, i, j
+            int64_t copy_size
+            int64_t total_items = last_chunk_index * _ARRAY_CHUNK_SIZE + self._item
+            dict blocks = {}
+            list indexes
+        arr = np.empty(self._dtype_length, dtype=object)
+        # group same child dtypes into blocks
+        for i in range(self._dtype_length):
+            indexes = blocks.setdefault(self.dtype[i], [])
+            indexes.append(i)
+        for child_dtype, indexes in blocks.items():
+            block = np.empty((len(indexes), total_items), dtype=child_dtype)
+            for i, j in enumerate(indexes):
+                arr[j] = block[i]
+        # memcpy chunk by chunk, column by column
+        for j in range(last_chunk_index + 1):
+            chunk = <char *> cpythonunsafe.PyLong_AsVoidPtr(
+                cpythonunsafe.PyList_GET_ITEM(<PyObject *> self._chunks, j))
+            for i in range(self._dtype_length):
+                copy_size = _ARRAY_CHUNK_SIZE * self._dtype_size[i]
+                body = <char*> PyArray_DATA(arr[i]) + j * copy_size
+                if j == last_chunk_index:
+                    copy_size = self._item * self._dtype_size[i]
+                memcpy(body, chunk + self._dtype_offset[i], copy_size)
         return arr
 
     cdef raise_dtype_error(self, str pgtype, int size):

@@ -21,3 +21,6 @@ cdef extern from "Python.h":
 
     object PyUnicode_FromKindAndData(
         int kind, const void *buffer, Py_ssize_t size)
+
+    int PyMapping_Check(object)
+    int PyMapping_HasKey(object, object)

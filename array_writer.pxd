@@ -42,14 +42,18 @@ cdef extern from "numpy/arrayobject.h":
 
 ctypedef dtype np_dtype
 
+cdef enum StorageMajor:
+    kRowMajor
+    kColumnMajor
+
 
 cdef extern from "numpy/libdivide/libdivide.h":
     struct libdivide_s64_t:
         int64_t magic
         uint8_t more
 
-    inline libdivide_s64_t libdivide_s64_gen(int64_t d) nogil
-    inline int64_t libdivide_s64_do(int64_t numer, const libdivide_s64_t *denom) nogil
+    libdivide_s64_t libdivide_s64_gen(int64_t d) nogil
+    int64_t libdivide_s64_do(int64_t numer, const libdivide_s64_t *denom) nogil
 
 
 cdef class DTypeError(Exception):
@@ -64,16 +68,18 @@ cdef struct libdivide_s64_ex_t:
 cdef class ArrayWriter:
     cdef:
         np_dtype dtype
+        StorageMajor major
         list null_indexes
         list _chunks
         int _dtype_length
         char *_dtype_kind
-        int32_t *_dtype_size
-        int32_t *_dtype_offset
+        uint32_t *_dtype_size
+        uint32_t *_dtype_offset
         libdivide_s64_ex_t *_time_adjust_value
         int64_t _item
         int16_t _field
         char *_data
+        char *_chunk
 
     cdef raise_dtype_error(self, str pgtype, int size)
     cdef int current_field_is_object(self) nogil
@@ -96,5 +102,7 @@ cdef class ArrayWriter:
     cdef int write_tid(self, uint32_t block, uint16_t offset) except -1
 
     cdef consolidate(self)
+    cdef _consolidate_row_major(self)
+    cdef _consolidate_column_major(self)
     cdef void _step(self)
     cdef void _recharge(self)

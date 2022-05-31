@@ -98,8 +98,8 @@ cdef class ArrayWriter:
         free(self._dtype_size)
         free(self._dtype_offset)
         free(self._time_adjust_value)
-        for ptr in self._chunks:
-            free(<PyObject *><intptr_t>ptr)
+        for chunk in self._chunks:
+            aligned_free(cpythonunsafe.PyLong_AsVoidPtr(<PyObject *>chunk))
 
     cdef void _step(self):
         if self.major == kRowMajor:
@@ -133,7 +133,7 @@ cdef class ArrayWriter:
         else:
             result = self._consolidate_column_major()
         for chunk in self._chunks:
-            aligned_free(<PyObject *><intptr_t>chunk)
+            aligned_free(cpythonunsafe.PyLong_AsVoidPtr(<PyObject *>chunk))
         self._chunks.clear()
         return result
 

@@ -166,7 +166,7 @@ cdef class ArrayWriter:
             int64_t total_items = last_chunk_index * _ARRAY_CHUNK_SIZE + self._item
             dict blocks = {}
             list indexes
-        arr = np.empty(self._dtype_length, dtype=object)
+        arr = np.empty(1, dtype=[(name, object) for name in self.dtype.names])[0]
         # group same child dtypes into blocks
         for i in range(self._dtype_length):
             indexes = blocks.setdefault(self.dtype[i], [])

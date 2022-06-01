@@ -48,11 +48,11 @@ cdef bits_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int bits_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
-    if output.current_field_is_object():
-        return output.write_object(bits_decode(settings, buf))
-
     cdef:
         int32_t bitlen = hton.unpack_int32(frb_read(buf, 4))
         ssize_t buf_len = buf.len
 
+    if output.current_field_is_object():
+        return output.write_object_unsafe(
+            cpythonunsafe.PyBytes_FromStringAndSize(frb_read_all(buf), buf_len))
     return output.write_bytes(frb_read_all(buf), buf_len)

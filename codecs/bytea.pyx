@@ -38,6 +38,6 @@ cdef int bytea_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter ou
     cdef ssize_t buf_len = buf.len
     if output.current_field_is_object():
         return output.write_object_unsafe(
-            cpythonunsafe.PyByteArray_FromStringAndSize(frb_read_all(buf), buf_len))
+            cpythonunsafe.PyBytes_FromStringAndSize(frb_read_all(buf), buf_len))
     else:
         return output.write_bytes(frb_read_all(buf), buf_len)

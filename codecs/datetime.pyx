@@ -143,6 +143,9 @@ cdef date_decode_tuple(CodecContext settings, FRBuffer *buf):
 
 
 cdef int date_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(date_decode(settings, buf))
+
     cdef int64_t pg_ordinal = hton.unpack_int32(frb_read(buf, 4))
 
     if pg_ordinal == pg_date_infinity:
@@ -214,6 +217,9 @@ cdef timestamp_decode_tuple(CodecContext settings, FRBuffer *buf):
 
 
 cdef int timestamp_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(timestamp_decode(settings, buf))
+
     cdef int64_t ts = hton.unpack_int64(frb_read(buf, 8))
 
     if ts == pg_time64_infinity:
@@ -274,6 +280,8 @@ cdef timestamptz_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int timestamptz_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(timestamptz_decode(settings, buf))
     return timestamp_decode_numpy(settings, buf, output)
 
 
@@ -320,6 +328,9 @@ cdef time_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int time_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(time_decode(settings, buf))
+
     cdef int64_t ts = hton.unpack_int64(frb_read(buf, 8))
 
     if ts == pg_time64_infinity:
@@ -393,6 +404,9 @@ cdef timetz_decode_tuple(CodecContext settings, FRBuffer *buf):
 
 
 cdef int timetz_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(timetz_decode(settings, buf))
+
     cdef:
         int64_t ts = hton.unpack_int64(frb_read(buf, 8))
         int64_t offset
@@ -478,6 +492,9 @@ cdef interval_decode_tuple(CodecContext settings, FRBuffer *buf):
 
 
 cdef int interval_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(interval_decode(settings, buf))
+
     cdef:
         int64_t ts = hton.unpack_int64(frb_read(buf, 8))
         int64_t days, months

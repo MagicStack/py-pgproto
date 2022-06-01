@@ -28,6 +28,8 @@ cdef uuid_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int uuid_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(uuid_decode(settings, buf))
     if buf.len != 16:
         raise TypeError(
             f'cannot decode UUID, expected 16 bytes, got {buf.len}')

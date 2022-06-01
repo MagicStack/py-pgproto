@@ -24,6 +24,8 @@ cdef float4_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int float4_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(float4_decode(settings, buf))
     cdef float f = hton.unpack_float(frb_read(buf, 4))
     return output.write_float(f)
 
@@ -40,5 +42,7 @@ cdef float8_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int float8_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(float8_decode(settings, buf))
     cdef double f = hton.unpack_double(frb_read(buf, 8))
     return output.write_double(f)

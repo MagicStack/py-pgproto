@@ -50,6 +50,8 @@ cdef box_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int box_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(box_decode(settings, buf))
     cdef:
         double high_x = hton.unpack_double(frb_read(buf, 8))
         double high_y = hton.unpack_double(frb_read(buf, 8))
@@ -76,6 +78,8 @@ cdef line_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int line_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(line_decode(settings, buf))
     cdef:
         double A = hton.unpack_double(frb_read(buf, 8))
         double B = hton.unpack_double(frb_read(buf, 8))
@@ -100,6 +104,8 @@ cdef lseg_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int lseg_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(lseg_decode(settings, buf))
     return box_decode_numpy(settings, buf, output)
 
 
@@ -118,6 +124,8 @@ cdef point_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int point_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(point_decode(settings, buf))
     cdef:
         double x = hton.unpack_double(frb_read(buf, 8))
         double y = hton.unpack_double(frb_read(buf, 8))
@@ -196,4 +204,6 @@ cdef circle_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int circle_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(circle_decode(settings, buf))
     return line_decode_numpy(settings, buf, output)

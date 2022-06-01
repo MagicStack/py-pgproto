@@ -52,6 +52,8 @@ cdef tid_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int tid_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
+    if output.current_field_is_object():
+        return output.write_object(tid_decode(settings, buf))
     cdef:
         uint32_t block
         uint16_t offset

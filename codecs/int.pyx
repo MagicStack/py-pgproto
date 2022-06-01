@@ -19,7 +19,14 @@ cdef bool_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int bool_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
-    return output.write_bool(frb_read(buf, 1)[0] != 0)
+    cdef:
+        int value = frb_read(buf, 1)[0] != 0
+        PyObject *obj
+    if output.current_field_is_object():
+        obj = cpythonunsafe.Py_True if value else cpythonunsafe.Py_False
+        cpythonunsafe.Py_INCREF(obj)
+        return output.write_object_unsafe(obj)
+    return output.write_bool(value)
 
 
 cdef int2_encode(CodecContext settings, WriteBuffer buf, obj):
@@ -47,7 +54,10 @@ cdef int2_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int int2_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
-    return output.write_int16(hton.unpack_int16(frb_read(buf, 2)))
+    cdef int16_t value = hton.unpack_int16(frb_read(buf, 2))
+    if output.current_field_is_object():
+        return output.write_object_unsafe(cpythonunsafe.PyLong_FromLong(value))
+    return output.write_int16(value)
 
 
 cdef int4_encode(CodecContext settings, WriteBuffer buf, obj):
@@ -76,7 +86,10 @@ cdef int4_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int int4_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
-    return output.write_int32(hton.unpack_int32(frb_read(buf, 4)))
+    cdef int32_t value = hton.unpack_int32(frb_read(buf, 4))
+    if output.current_field_is_object():
+        return output.write_object_unsafe(cpythonunsafe.PyLong_FromLong(value))
+    return output.write_int32(value)
 
 
 cdef uint4_encode(CodecContext settings, WriteBuffer buf, obj):
@@ -135,7 +148,10 @@ cdef int8_decode(CodecContext settings, FRBuffer *buf):
 
 
 cdef int int8_decode_numpy(CodecContext settings, FRBuffer *buf, ArrayWriter output) except -1:
-    return output.write_int64(hton.unpack_int64(frb_read(buf, 8)))
+    cdef int64_t value = hton.unpack_int64(frb_read(buf, 8))
+    if output.current_field_is_object():
+        return output.write_object_unsafe(cpythonunsafe.PyLong_FromLong(value))
+    return output.write_int64(value)
 
 
 cdef uint8_encode(CodecContext settings, WriteBuffer buf, obj):

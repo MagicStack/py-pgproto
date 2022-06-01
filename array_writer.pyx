@@ -191,7 +191,7 @@ cdef class ArrayWriter:
         raise DTypeError(f"dtype[{self._field}] = {self.dtype[self._field]} does not match "
                          f"PostgreSQL {pgtype}" + (f" of size {size}" if size > 0 else ""))
 
-    cdef int current_field_is_object(self) nogil:
+    cdef inline int current_field_is_object(self) nogil:
         return self._dtype_kind[self._field] == b"O"
 
     cdef int write_null(self) except -1:

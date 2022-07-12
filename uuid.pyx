@@ -1,8 +1,24 @@
 import functools
 import uuid
 
+cimport cython
+cimport cpython
+
 from libc.stdint cimport uint8_t, int8_t
 from libc.string cimport memcpy, memcmp
+
+
+cdef extern from "Python.h":
+    int PyUnicode_1BYTE_KIND
+    const char* PyUnicode_AsUTF8AndSize(
+        object unicode, Py_ssize_t *size) except NULL
+    object PyUnicode_FromKindAndData(
+        int kind, const void *buffer, Py_ssize_t size)
+
+
+cdef extern from "./tohex.h":
+    cdef void uuid_to_str(const char *source, char *dest)
+    cdef void uuid_to_hex(const char *source, char *dest)
 
 
 # A more efficient UUID type implementation
@@ -61,13 +77,13 @@ cdef std_UUID = uuid.UUID
 
 cdef pg_uuid_bytes_from_str(str u, char *out):
     cdef:
-        char *orig_buf
+        const char *orig_buf
         Py_ssize_t size
         unsigned char ch
         uint8_t acc, part, acc_set
         int i, j
 
-    orig_buf = <char*>cpythonx.PyUnicode_AsUTF8AndSize(u, &size)
+    orig_buf = PyUnicode_AsUTF8AndSize(u, &size)
     if size > 36 or size < 32:
         raise ValueError(
             f'invalid UUID {u!r}: '
@@ -102,8 +118,8 @@ cdef pg_uuid_bytes_from_str(str u, char *out):
                 f'invalid UUID {u!r}: decodes to more than 16 bytes')
 
     if j != 16:
-            raise ValueError(
-                f'invalid UUID {u!r}: decodes to less than 16 bytes')
+        raise ValueError(
+            f'invalid UUID {u!r}: decodes to less than 16 bytes')
 
 
 cdef class __UUIDReplaceMe:
@@ -165,16 +181,14 @@ cdef class UUID(__UUIDReplaceMe):
 
     def __str__(self):
         cdef char out[36]
-        tohex.uuid_to_str(self._data, out)
-        return cpythonx.PyUnicode_FromKindAndData(
-            cpythonx.PyUnicode_1BYTE_KIND, <void*>out, 36)
+        uuid_to_str(self._data, out)
+        return PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, <void*>out, 36)
 
     @property
     def hex(self):
         cdef char out[32]
-        tohex.uuid_to_hex(self._data, out)
-        return cpythonx.PyUnicode_FromKindAndData(
-            cpythonx.PyUnicode_1BYTE_KIND, <void*>out, 32)
+        uuid_to_hex(self._data, out)
+        return PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, <void*>out, 32)
 
     def __repr__(self):
         return f"UUID('{self}')"

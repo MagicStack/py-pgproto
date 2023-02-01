@@ -14,7 +14,7 @@ cdef inline as_pg_string_and_size(
     if settings.is_encoding_utf8():
         cstr[0] = <char*>cpythonx.PyUnicode_AsUTF8AndSize(obj, size)
     else:
-        encoded = settings.get_text_codec().encode(obj)
+        encoded = settings.get_text_codec().encode(obj)[0]
         cpython.PyBytes_AsStringAndSize(encoded, cstr, size)
 
     if size[0] > 0x7fffffff:
@@ -40,7 +40,7 @@ cdef inline decode_pg_string(CodecContext settings, const char* data,
         return cpython.PyUnicode_DecodeUTF8(data, len, NULL)
     else:
         bytes = cpython.PyBytes_FromStringAndSize(data, len)
-        return settings.get_text_codec().decode(bytes)
+        return settings.get_text_codec().decode(bytes)[0]
 
 
 cdef text_decode(CodecContext settings, FRBuffer *buf):

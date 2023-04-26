@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#if defined(__linux__) || defined(__CYGWIN__)
+#if defined(__linux__) || defined(__CYGWIN__) || defined(__sun)
 #include <endian.h>
 #elif defined(__NetBSD__) || defined(__FreeBSD__) || defined(__OpenBSD__) \
       || defined(__DragonFly__)

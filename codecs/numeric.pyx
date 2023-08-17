@@ -16,6 +16,8 @@ DEF MAX_DSCALE = 0x3FFF
 DEF NUMERIC_POS = 0x0000
 DEF NUMERIC_NEG = 0x4000
 DEF NUMERIC_NAN = 0xC000
+DEF NUMERIC_PINF = 0xD000
+DEF NUMERIC_NINF = 0xF000
 
 _Dec = decimal.Decimal
 
@@ -51,12 +53,19 @@ cdef numeric_encode_binary(CodecContext settings, WriteBuffer buf, obj):
         dec = _Dec(obj)
 
     dt = dec.as_tuple()
-    if dt.exponent == 'F':
-        raise ValueError('numeric type does not support infinite values')
 
     if dt.exponent == 'n' or dt.exponent == 'N':
         # NaN
         sign = NUMERIC_NAN
+        num_pgdigits = 0
+        weight = 0
+        dscale = 0
+    elif dt.exponent == 'F':
+        # Infinity
+        if dt.sign:
+            sign = NUMERIC_NINF
+        else:
+            sign = NUMERIC_PINF
         num_pgdigits = 0
         weight = 0
         dscale = 0
@@ -160,6 +169,12 @@ cdef numeric_decode_binary_ex(
     if sign == NUMERIC_NAN:
         # Not-a-number
         return _Dec('NaN')
+    elif sign == NUMERIC_PINF:
+        # +Infinity
+        return _Dec('Infinity')
+    elif sign == NUMERIC_NINF:
+        # -Infinity
+        return _Dec('-Infinity')
 
     if num_pgdigits == 0:
         # Zero

@@ -9,6 +9,10 @@ cdef class CodecContext:
 
     cpdef get_text_codec(self)
     cdef is_encoding_utf8(self)
+    cpdef get_json_decoder(self)
+    cdef is_decoding_json(self)
+    cpdef get_json_encoder(self)
+    cdef is_encoding_json(self)
 
 
 ctypedef object (*encode_func)(CodecContext settings,

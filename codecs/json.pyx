@@ -10,6 +10,9 @@ cdef jsonb_encode(CodecContext settings, WriteBuffer buf, obj):
         char *str
         ssize_t size
 
+    if settings.is_encoding_json():
+        obj = settings.get_json_encoder().encode(obj)
+
     as_pg_string_and_size(settings, obj, &str, &size)
 
     if size > 0x7fffffff - 1:
@@ -26,4 +29,29 @@ cdef jsonb_decode(CodecContext settings, FRBuffer *buf):
     if format != 1:
         raise ValueError('unexpected JSONB format: {}'.format(format))
 
-    return text_decode(settings, buf)
+    rv = text_decode(settings, buf)
+
+    if settings.is_decoding_json():
+        rv = settings.get_json_decoder().decode(rv)
+
+    return rv
+
+
+cdef json_encode(CodecContext settings, WriteBuffer buf, obj):
+    cdef:
+        char *str
+        ssize_t size
+
+    if settings.is_encoding_json():
+        obj = settings.get_json_encoder().encode(obj)
+
+    text_encode(settings, buf, obj)
+
+
+cdef json_decode(CodecContext settings, FRBuffer *buf):
+    rv = text_decode(settings, buf)
+
+    if settings.is_decoding_json():
+        rv = settings.get_json_decoder().decode(rv)
+
+    return rv

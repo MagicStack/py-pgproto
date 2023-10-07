@@ -12,3 +12,15 @@ cdef class CodecContext:
 
     cdef is_encoding_utf8(self):
         raise NotImplementedError
+
+    cpdef get_json_decoder(self):
+        raise NotImplementedError
+
+    cdef is_decoding_json(self):
+        raise NotImplementedError
+
+    cpdef get_json_encoder(self):
+        raise NotImplementedError
+
+    cdef is_encoding_json(self):
+        raise NotImplementedError

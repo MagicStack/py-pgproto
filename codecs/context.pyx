@@ -17,10 +17,10 @@ cdef class CodecContext:
         raise NotImplementedError
 
     cdef is_decoding_json(self):
-        raise NotImplementedError
+        return False
 
     cpdef get_json_encoder(self):
         raise NotImplementedError
 
     cdef is_encoding_json(self):
-        raise NotImplementedError
+        return False

@@ -4,15 +4,18 @@
 # This module is part of asyncpg and is released under
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
+from __future__ import annotations
 
-import builtins
-import sys
 import typing
 
-if sys.version_info >= (3, 8):
-    from typing import Literal, SupportsIndex
-else:
-    from typing_extensions import Literal, SupportsIndex
+if typing.TYPE_CHECKING:
+    import builtins
+    import sys
+
+    if sys.version_info < (3, 11):
+        from typing_extensions import Self
+    else:
+        from typing import Self
 
 
 __all__ = (
@@ -20,8 +23,7 @@ __all__ = (
     'Box', 'Line', 'LineSegment', 'Circle',
 )
 
-_BitString = typing.TypeVar('_BitString', bound='BitString')
-_BitOrderType = Literal['big', 'little']
+_BitOrderType = typing.Literal['big', 'little']
 
 
 class BitString:
@@ -29,8 +31,11 @@ class BitString:
 
     __slots__ = '_bytes', '_bitlength'
 
+    _bytes: bytes
+    _bitlength: int
+
     def __init__(self,
-                 bitstring: typing.Optional[builtins.bytes] = None) -> None:
+                 bitstring: builtins.bytes | None = None) -> None:
         if not bitstring:
             self._bytes = bytes()
             self._bitlength = 0
@@ -67,9 +72,9 @@ class BitString:
             self._bitlength = bitlen
 
     @classmethod
-    def frombytes(cls: typing.Type[_BitString],
-                  bytes_: typing.Optional[builtins.bytes] = None,
-                  bitlength: typing.Optional[int] = None) -> _BitString:
+    def frombytes(cls,
+                  bytes_: builtins.bytes | None = None,
+                  bitlength: int | None = None) -> Self:
         if bitlength is None:
             if bytes_ is None:
                 bytes_ = bytes()
@@ -151,9 +156,9 @@ class BitString:
         return x
 
     @classmethod
-    def from_int(cls: typing.Type[_BitString], x: int, length: int,
+    def from_int(cls, x: int, length: int,
                  bitorder: _BitOrderType = 'big', *, signed: bool = False) \
-            -> _BitString:
+            -> Self:
         """Represent the Python int x as a BitString.
         Acts similarly to int.to_bytes.
 
@@ -243,17 +248,23 @@ class Point(typing.Tuple[float, float]):
 
     __slots__ = ()
 
-    def __new__(cls,
-                x: typing.Union[typing.SupportsFloat,
-                                SupportsIndex,
-                                typing.Text,
-                                builtins.bytes,
-                                builtins.bytearray],
-                y: typing.Union[typing.SupportsFloat,
-                                SupportsIndex,
-                                typing.Text,
-                                builtins.bytes,
-                                builtins.bytearray]) -> 'Point':
+    def __new__(
+        cls,
+        x: (
+            typing.SupportsFloat |
+            typing.SupportsIndex |
+            typing.Text |
+            builtins.bytes |
+            builtins.bytearray
+        ),
+        y: (
+            typing.SupportsFloat |
+            typing.SupportsIndex |
+            typing.Text |
+            builtins.bytes |
+            builtins.bytearray
+        )
+    ) -> Self:
         return super().__new__(cls,
                                typing.cast(typing.Any, (float(x), float(y))))
 
@@ -279,7 +290,7 @@ class Box(typing.Tuple[Point, Point]):
     __slots__ = ()
 
     def __new__(cls, high: typing.Sequence[float],
-                low: typing.Sequence[float]) -> 'Box':
+                low: typing.Sequence[float]) -> Self:
         return super().__new__(cls,
                                typing.cast(typing.Any, (Point(*high),
                                                         Point(*low))))
@@ -305,7 +316,7 @@ class Line(typing.Tuple[float, float, float]):
 
     __slots__ = ()
 
-    def __new__(cls, A: float, B: float, C: float) -> 'Line':
+    def __new__(cls, A: float, B: float, C: float) -> Self:
         return super().__new__(cls, typing.cast(typing.Any, (A, B, C)))
 
     @property
@@ -327,7 +338,7 @@ class LineSegment(typing.Tuple[Point, Point]):
     __slots__ = ()
 
     def __new__(cls, p1: typing.Sequence[float],
-                p2: typing.Sequence[float]) -> 'LineSegment':
+                p2: typing.Sequence[float]) -> Self:
         return super().__new__(cls,
                                typing.cast(typing.Any, (Point(*p1),
                                                         Point(*p2))))
@@ -388,8 +399,9 @@ class Path:
     def __getitem__(self, i: slice) -> typing.Tuple[Point, ...]:
         ...
 
-    def __getitem__(self, i: typing.Union[int, slice]) \
-            -> typing.Union[Point, typing.Tuple[Point, ...]]:
+    def __getitem__(
+        self, i: int | slice
+    ) -> Point | typing.Tuple[Point, ...]:
         return self.points[i]
 
     def __contains__(self, point: object) -> bool:
@@ -411,7 +423,7 @@ class Circle(typing.Tuple[Point, float]):
 
     __slots__ = ()
 
-    def __new__(cls, center: Point, radius: float) -> 'Circle':
+    def __new__(cls, center: Point, radius: float) -> Self:
         return super().__new__(cls, typing.cast(typing.Any, (center, radius)))
 
     @property

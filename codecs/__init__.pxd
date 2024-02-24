@@ -103,6 +103,8 @@ cdef float8_decode(CodecContext settings, FRBuffer * buf)
 # JSON
 cdef jsonb_encode(CodecContext settings, WriteBuffer buf, obj)
 cdef jsonb_decode(CodecContext settings, FRBuffer * buf)
+cdef json_encode(CodecContext settings, WriteBuffer buf, obj)
+cdef json_decode(CodecContext settings, FRBuffer *buf)
 
 
 # JSON path

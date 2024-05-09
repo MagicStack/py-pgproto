@@ -253,14 +253,14 @@ class Point(typing.Tuple[float, float]):
         x: (
             typing.SupportsFloat |
             typing.SupportsIndex |
-            typing.Text |
+            str |
             builtins.bytes |
             builtins.bytearray
         ),
         y: (
             typing.SupportsFloat |
             typing.SupportsIndex |
-            typing.Text |
+            str |
             builtins.bytes |
             builtins.bytearray
         )

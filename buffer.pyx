@@ -667,8 +667,13 @@ cdef class ReadBuffer:
         self._finish_message()
         return mem
 
-    cdef redirect_messages(self, WriteBuffer buf, char mtype,
+    cdef int32_t redirect_messages(self, WriteBuffer buf, char mtype,
                            int stop_at=0):
+        # Redirects messages from self into buf until either
+        # a message with a type different than mtype is encountered, or
+        # buf contains stop_at bytes.
+        # Returns the number of messages redirected.
+
         if not self._current_message_ready:
             raise BufferError(
                 'consume_full_messages called on a buffer without a '
@@ -687,8 +692,11 @@ cdef class ReadBuffer:
             ssize_t new_pos0
             ssize_t pos_delta
             int32_t done
+            int32_t count
 
+        count = 0
         while True:
+            count += 1
             buf.write_byte(mtype)
             buf.write_int32(self._current_message_len)
 
@@ -701,10 +709,10 @@ cdef class ReadBuffer:
             if self._length > 0:
                 self._ensure_first_buf()
             else:
-                return
+                return count
 
             if stop_at and buf._length >= stop_at:
-                return
+                return count
 
            # Fast path: exhaust buf0 as efficiently as possible.
             if self._pos0 + 5 <= self._len0:
@@ -727,6 +735,7 @@ cdef class ReadBuffer:
                     if new_pos0 + msg_len > cbuf_len:
                         break
                     new_pos0 += msg_len
+                    count += 1
 
                 if new_pos0 != self._pos0:
                     assert self._pos0 < new_pos0 <= self._len0
@@ -734,7 +743,8 @@ cdef class ReadBuffer:
                     pos_delta = new_pos0 - self._pos0
                     buf.write_cstr(
                         cbuf + self._pos0,
-                        pos_delta)
+                        pos_delta
+                    )
 
                     self._pos0 = new_pos0
                     self._length -= pos_delta
@@ -743,11 +753,11 @@ cdef class ReadBuffer:
 
                 if done:
                     # The next message is of a different type.
-                    return
+                    return count
 
             # Back to slow path.
             if not self.take_message_type(mtype):
-                return
+                return count
 
     cdef bytearray consume_messages(self, char mtype):
         """Consume consecutive messages of the same type."""

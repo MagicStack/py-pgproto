@@ -1,1 +1,1 @@
-Low-level IO utilities for PosgtreSQL drivers.
+Low-level IO utilities for PostgreSQL drivers.

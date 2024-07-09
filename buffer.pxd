@@ -127,7 +127,7 @@ cdef class ReadBuffer:
     cdef inline const char* try_consume_message(self, ssize_t* len)
     cdef bytes consume_message(self)
     cdef discard_message(self)
-    cdef redirect_messages(self, WriteBuffer buf, char mtype, int stop_at=?)
+    cdef int32_t redirect_messages(self, WriteBuffer buf, char mtype, int stop_at=?)
     cdef bytearray consume_messages(self, char mtype)
     cdef finish_message(self)
     cdef inline _finish_message(self)

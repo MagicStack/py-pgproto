@@ -219,8 +219,8 @@ cdef timestamptz_encode(CodecContext settings, WriteBuffer buf, obj):
         buf.write_int64(pg_time64_negative_infinity)
         return
 
+    # convert to utc and get time since epoch
     utc_dt = obj.astimezone(utc)
-
     delta = utc_dt - pg_epoch_datetime_utc
     cdef:
         int64_t seconds = cpython.PyLong_AsLongLong(delta.days) * 86400 + \
@@ -244,8 +244,10 @@ cdef timestamptz_decode(CodecContext settings, FRBuffer *buf):
         # negative infinity
         return negative_infinity_datetime
     else:
-        return pg_epoch_datetime_utc.__add__(
+        dt = pg_epoch_datetime_utc.__add__(
             timedelta(0, seconds, microseconds))
+        # convert to current system timezone
+        return dt.astimezone()
 
 
 cdef time_encode(CodecContext settings, WriteBuffer buf, obj):

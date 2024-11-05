@@ -172,7 +172,13 @@ cdef class UUID(__UUIDReplaceMe):
         if self._int is None:
             # The cache is important because `self.int` can be
             # used multiple times by __hash__ etc.
-            self._int = int.from_bytes(self.bytes, 'big')
+            #
+            # The or 0 works around a bug interaction between cpython
+            # 3.10 and earlier and Cython ~3.0.11 in which
+            # int.from_bytes returns a "non-canonical 0" and then
+            # Cython's implementation of & mishandles it.
+            # See cython/cython#6480.
+            self._int = int.from_bytes(self.bytes, 'big') or 0
         return self._int
 
     @property

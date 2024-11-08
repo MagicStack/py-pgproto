@@ -12,6 +12,8 @@ import collections
 class BufferError(Exception):
     pass
 
+include "./buffer.pxi"
+
 @cython.no_gc_clear
 @cython.final
 @cython.freelist(_BUFFER_FREELIST_SIZE)

@@ -5,6 +5,13 @@
 # the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
 
 
+from libc.stdint cimport int8_t, uint8_t, int16_t, uint16_t, \
+                         int32_t, uint32_t, int64_t, uint64_t
+
+
+include "./buffer.pxi"
+
+
 cdef class WriteBuffer:
     cdef:
         # Preallocated small buffer

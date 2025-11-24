@@ -72,7 +72,7 @@ _hextable[:] = [
 ]
 
 
-cdef std_UUID = uuid.UUID
+std_UUID = uuid.UUID
 
 
 cdef pg_uuid_bytes_from_str(str u, char *out):
@@ -356,4 +356,4 @@ cpython.PyTuple_SET_ITEM(UUID.__mro__, 1, std_UUID)
 # </hack>
 
 
-cdef pg_UUID = UUID
+pg_UUID = UUID

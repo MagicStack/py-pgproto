@@ -339,9 +339,10 @@ cdef timetz_encode_tuple(CodecContext settings, WriteBuffer buf, obj):
 
 cdef timetz_decode(CodecContext settings, FRBuffer *buf):
     time = time_decode(settings, buf)
-    cdef int32_t offset = <int32_t>(hton.unpack_int32(frb_read(buf, 4)) / 60)
+    # Binary offset is seconds, the same unit timetz_encode writes.
+    cdef int32_t offset = hton.unpack_int32(frb_read(buf, 4))
     # See the comment in the `timetz_encode` method.
-    return time.replace(tzinfo=datetime.timezone(timedelta(minutes=-offset)))
+    return time.replace(tzinfo=datetime.timezone(timedelta(seconds=-offset)))
 
 
 cdef timetz_decode_tuple(CodecContext settings, FRBuffer *buf):

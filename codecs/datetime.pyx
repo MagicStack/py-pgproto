@@ -11,7 +11,6 @@ import datetime
 cpython.datetime.import_datetime()
 
 utc = datetime.timezone.utc
-date_from_ordinal = datetime.date.fromordinal
 timedelta = datetime.timedelta
 
 pg_epoch_datetime = datetime.datetime(2000, 1, 1)
@@ -21,6 +20,15 @@ cdef int32_t pg_epoch_datetime_ts = \
 pg_epoch_datetime_utc = datetime.datetime(2000, 1, 1, tzinfo=utc)
 cdef int32_t pg_epoch_datetime_utc_ts = \
     <int32_t>cpython.PyLong_AsLong(int(pg_epoch_datetime_utc.timestamp()))
+
+# 2000-01-01 00:00:00 UTC in microseconds since the Unix epoch, and the number
+# of microseconds in a day -- used to decode timestamp values without Python
+# level arithmetic.
+cdef int64_t pg_epoch_us = 946684800 * 1000000
+cdef int64_t us_per_day = 86400 * 1000000
+cdef int64_t us_per_hour = 3600000000
+cdef int64_t us_per_minute = 60000000
+cdef int64_t us_per_second = 1000000
 
 pg_epoch_date = datetime.date(2000, 1, 1)
 cdef int32_t pg_date_offset_ord = \
@@ -122,15 +130,64 @@ cdef date_encode_tuple(CodecContext settings, WriteBuffer buf, obj):
     buf.write_int32(pg_ordinal)
 
 
+cdef inline void _civil_from_days(int64_t days, int *y, int *m, int *d):
+    # Convert a count of days since 1970-01-01 to a civil (proleptic
+    # Gregorian) date.  Hinnant's algorithm, no Python objects involved.
+    cdef int64_t z = days + 719468
+    cdef int64_t era = (z if z >= 0 else z - 146096) // 146097
+    cdef int64_t doe = z - era * 146097
+    cdef int64_t yoe = (doe - doe // 1460 + doe // 36524 - doe // 146096) // 365
+    cdef int64_t yy = yoe + era * 400
+    cdef int64_t doy = doe - (365 * yoe + yoe // 4 - yoe // 100)
+    cdef int64_t mp = (5 * doy + 2) // 153
+    y[0] = <int>yy
+    m[0] = <int>(mp + (3 if mp < 10 else -9))
+    d[0] = <int>(doy - (153 * mp + 2) // 5 + 1)
+    if m[0] <= 2:
+        y[0] += 1
+
+
+cdef inline object _datetime_from_us(int64_t ts_us, object tzinfo):
+    # Build a datetime from a count of microseconds since 2000-01-01 UTC
+    # directly through the C API: this avoids creating an intermediate
+    # timedelta and calling datetime.__add__ for every value.
+    cdef int64_t total = ts_us + pg_epoch_us
+    cdef int64_t days = total // us_per_day
+    cdef int64_t rem = total - days * us_per_day
+    cdef int y, mo, d, h, mi, s, us
+
+    _civil_from_days(days, &y, &mo, &d)
+    h = <int>(rem // us_per_hour)
+    rem -= <int64_t>h * us_per_hour
+    mi = <int>(rem // us_per_minute)
+    rem -= <int64_t>mi * us_per_minute
+    s = <int>(rem // us_per_second)
+    us = <int>(rem - <int64_t>s * us_per_second)
+
+    if y < 1 or y > 9999:
+        # Same behaviour (and same exception type) as the datetime + timedelta
+        # arithmetic this replaces.
+        raise OverflowError('date value out of range')
+
+    return cpython.datetime.PyDateTimeAPI.DateTime_FromDateAndTime(
+        y, mo, d, h, mi, s, us, tzinfo,
+        cpython.datetime.PyDateTimeAPI.DateTimeType)
+
+
 cdef date_decode(CodecContext settings, FRBuffer *buf):
     cdef int32_t pg_ordinal = hton.unpack_int32(frb_read(buf, 4))
+    cdef int y, mo, d
 
     if pg_ordinal == pg_date_infinity:
         return infinity_date
     elif pg_ordinal == pg_date_negative_infinity:
         return negative_infinity_date
     else:
-        return date_from_ordinal(pg_ordinal + pg_date_offset_ord)
+        # PostgreSQL dates are days since 2000-01-01; 10957 is that same
+        # day counted from 1970-01-01.
+        _civil_from_days(pg_ordinal + 10957, &y, &mo, &d)
+        return cpython.datetime.PyDateTimeAPI.Date_FromDate(
+            y, mo, d, cpython.datetime.PyDateTimeAPI.DateType)
 
 
 cdef date_decode_tuple(CodecContext settings, FRBuffer *buf):
@@ -188,8 +245,7 @@ cdef timestamp_decode(CodecContext settings, FRBuffer *buf):
         # negative infinity
         return negative_infinity_datetime
     else:
-        return pg_epoch_datetime.__add__(
-            timedelta(0, seconds, microseconds))
+        return _datetime_from_us(seconds * 1000000 + microseconds, None)
 
 
 cdef timestamp_decode_tuple(CodecContext settings, FRBuffer *buf):
@@ -244,8 +300,7 @@ cdef timestamptz_decode(CodecContext settings, FRBuffer *buf):
         # negative infinity
         return negative_infinity_datetime
     else:
-        return pg_epoch_datetime_utc.__add__(
-            timedelta(0, seconds, microseconds))
+        return _datetime_from_us(seconds * 1000000 + microseconds, utc)
 
 
 cdef time_encode(CodecContext settings, WriteBuffer buf, obj):
